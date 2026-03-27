@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  RECEPTIONIST
+  NURSE
+  DOCTOR
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  phone     String?
+  dob       DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  appointments  Appointment[]
+  invoices      Invoice[]
+}
+
+model Staff {
+  id             String   @id @default(cuid())
+  name           String
+  role           Role
+  email          String   @unique
+  specialisation String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  patientId    String
+  staffId      String
+  scheduledAt  DateTime
+  durationMins Int      @default(30)
+  status       Status   @default(PENDING)
+  reason       String?
+  outcome      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  staff   Staff   @relation(fields: [staffId], references: [id])
+  invoice Invoice?
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  patientId     String
+  appointmentId String        @unique
+  amount        Float
+  status        InvoiceStatus @default(UNPAID)
+  issuedAt      DateTime      @default(now())
+  paidAt        DateTime?
+
+  patient     Patient     @relation(fields: [patientId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
