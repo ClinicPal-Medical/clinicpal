@@ -47,11 +47,13 @@ model Staff {
   name           String
   role           Role
   email          String   @unique
+  password       String
   specialisation String?
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
 
-  appointments Appointment[]
+  appointments      Appointment[]
+  stockTransactions StockTransaction[]
 }
 
 model Appointment {
@@ -74,12 +76,46 @@ model Appointment {
 model Invoice {
   id            String        @id @default(cuid())
   patientId     String
-  appointmentId String        @unique
+  appointmentId String?       @unique
   amount        Float
   status        InvoiceStatus @default(UNPAID)
   issuedAt      DateTime      @default(now())
   paidAt        DateTime?
 
-  patient     Patient     @relation(fields: [patientId], references: [id])
-  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+}
+
+enum StockType {
+  RECEIVED
+  USED
+  ADJUSTED
+  DISPOSED
+}
+
+model StockItem {
+  id               String   @id @default(cuid())
+  name             String
+  category         String
+  quantity         Int
+  reorderThreshold Int
+  unitCost         Decimal
+  supplier         String?
+  expiry           DateTime?
+  createdAt        DateTime @default(now())
+
+  transactions StockTransaction[]
+}
+
+model StockTransaction {
+  id            String    @id @default(cuid())
+  itemId        String
+  staffId       String
+  type          StockType
+  quantityDelta Int
+  occurredAt    DateTime  @default(now())
+  notes         String?
+
+  item  StockItem @relation(fields: [itemId], references: [id])
+  staff Staff     @relation(fields: [staffId], references: [id])
 }

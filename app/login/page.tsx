@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -26,7 +26,12 @@ export default function LoginPage() {
       setError(res.error);
       setLoading(false);
     } else {
-      router.push('/patient/dashboard');
+      const session = await getSession();
+      if (session?.user?.role && session.user.role !== 'PATIENT') {
+        router.push('/staff/dashboard');
+      } else {
+        router.push('/patient/dashboard');
+      }
     }
   };
 

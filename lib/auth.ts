@@ -20,25 +20,35 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         })
 
-        if (!patient || !patient.password) {
-          throw new Error("Invalid credentials");
+        if (patient && patient.password) {
+          const isPatientCorrect = await bcrypt.compare(credentials.password, patient.password)
+          if (isPatientCorrect) {
+            return {
+              id: patient.id,
+              name: `${patient.firstName} ${patient.lastName}`,
+              email: patient.email,
+              role: "PATIENT"
+            };
+          }
         }
 
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          patient.password
-        )
+        const staff = await prisma.staff.findUnique({
+          where: { email: credentials.email },
+        })
 
-        if (!isCorrectPassword) {
-          throw new Error("Invalid credentials");
+        if (staff && staff.password) {
+          const isStaffCorrect = await bcrypt.compare(credentials.password, staff.password)
+          if (isStaffCorrect) {
+            return {
+              id: staff.id,
+              name: staff.name,
+              email: staff.email,
+              role: staff.role
+            };
+          }
         }
 
-        return {
-          id: patient.id,
-          name: `${patient.firstName} ${patient.lastName}`,
-          email: patient.email,
-          role: "PATIENT"
-        };
+        throw new Error("Invalid credentials");
       }
     })
   ],
