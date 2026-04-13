@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -91,6 +92,12 @@ export default function LoginPage() {
              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Demo Credentials</p>
              <p className="text-sm font-semibold text-slate-700">john.doe@example.com <br/> jane.smith@example.com</p>
              <p className="text-sm text-slate-500 mt-1">Password: <span className="font-mono bg-slate-200 px-1 py-0.5 rounded text-slate-700">password123</span></p>
+          </div>
+
+          <div className="mt-6 text-center">
+             <p className="text-sm font-medium text-slate-500">
+               Don't have an account? <Link href="/signup" className="text-blue-600 font-bold hover:underline">Sign up</Link>
+             </p>
           </div>
         </div>
       </div>
