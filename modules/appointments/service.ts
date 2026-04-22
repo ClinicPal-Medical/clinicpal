@@ -18,7 +18,7 @@ export async function getPatientAppointments(patientId: string) {
 
 export async function getAvailableSlots(staffId: string, date: string) {
   const startOfDay = new Date(`${date}T09:00:00`);
-  const endOfDay = new Date(`${date}T17:00:00`);
+  const endOfDay = new Date(`${date}T21:00:00`);
   
   const existingAppts = await prisma.appointment.findMany({
     where: {
