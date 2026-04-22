@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Calendar, Filter, FileText, Check, X, User } from 'lucide-react';
+import Link from 'next/link';
+import { Calendar, Filter, FileText, Check, X, User, Stethoscope } from 'lucide-react';
 
 export default function AppointmentsQueue() {
   const { data: session } = useSession();
@@ -139,6 +140,14 @@ export default function AppointmentsQueue() {
                     )}
                     {appt.status === 'CONFIRMED' && (
                       <>
+                        {role === 'DOCTOR' && (
+                          <Link
+                            href={`/staff/appointments/${appt.id}/examine`}
+                            className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 font-bold text-xs rounded-lg transition-colors"
+                          >
+                            <Stethoscope size={14} className="mr-1" /> Begin Examination
+                          </Link>
+                        )}
                         <button 
                           onClick={() => { setActiveAppt(appt); setIsModalOpen(true); }} 
                           className="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 font-bold text-xs rounded-lg transition-colors"

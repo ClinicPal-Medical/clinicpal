@@ -40,6 +40,11 @@ model Patient {
 
   appointments  Appointment[]
   invoices      Invoice[]
+  // Encounter back-relations (additive)
+  encounters    Encounter[]
+  prescriptions Prescription[]
+  certificates  MedicalCertificate[]
+  referrals     Referral[]
 }
 
 model Staff {
@@ -52,8 +57,13 @@ model Staff {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
 
-  appointments      Appointment[]
-  stockTransactions StockTransaction[]
+  appointments        Appointment[]
+  stockTransactions   StockTransaction[]
+  // Encounter back-relations (additive)
+  doctorEncounters    Encounter[]          @relation("DoctorEncounters")
+  doctorPrescriptions Prescription[]       @relation("DoctorPrescriptions")
+  doctorCertificates  MedicalCertificate[] @relation("DoctorCertificates")
+  doctorReferrals     Referral[]           @relation("DoctorReferrals")
 }
 
 model Appointment {
@@ -68,9 +78,11 @@ model Appointment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  patient Patient @relation(fields: [patientId], references: [id])
-  staff   Staff   @relation(fields: [staffId], references: [id])
-  invoice Invoice?
+  patient   Patient   @relation(fields: [patientId], references: [id])
+  staff     Staff     @relation(fields: [staffId], references: [id])
+  invoice   Invoice?
+  // Encounter back-relation (additive)
+  encounter Encounter?
 }
 
 model Invoice {
@@ -94,7 +106,7 @@ enum StockType {
 }
 
 model StockItem {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   name             String
   category         String
   quantity         Int
@@ -102,7 +114,7 @@ model StockItem {
   unitCost         Decimal
   supplier         String?
   expiry           DateTime?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime  @default(now())
 
   transactions StockTransaction[]
 }
@@ -118,4 +130,107 @@ model StockTransaction {
 
   item  StockItem @relation(fields: [itemId], references: [id])
   staff Staff     @relation(fields: [staffId], references: [id])
+}
+
+// ─── Encounter Models ──────────────────────────────────────────────────────────
+
+enum PrescriptionType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum PrescriptionStatus {
+  DRAFT
+  ISSUED
+}
+
+enum Urgency {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+model Encounter {
+  id             String   @id @default(cuid())
+  appointmentId  String   @unique
+  patientId      String
+  doctorId       String
+  chiefComplaint String?
+  examination    String?
+  diagnosis      String?
+  plan           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  appointment  Appointment          @relation(fields: [appointmentId], references: [id])
+  patient      Patient              @relation(fields: [patientId], references: [id])
+  doctor       Staff                @relation("DoctorEncounters", fields: [doctorId], references: [id])
+  prescriptions Prescription[]
+  certificates  MedicalCertificate[]
+  referrals     Referral[]
+}
+
+model Prescription {
+  id          String             @id @default(cuid())
+  encounterId String
+  patientId   String
+  doctorId    String
+  type        PrescriptionType
+  status      PrescriptionStatus @default(DRAFT)
+  notes       String?
+  issuedAt    DateTime?
+  createdAt   DateTime           @default(now())
+
+  encounter Encounter        @relation(fields: [encounterId], references: [id])
+  patient   Patient          @relation(fields: [patientId], references: [id])
+  doctor    Staff            @relation("DoctorPrescriptions", fields: [doctorId], references: [id])
+  items     PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id             String @id @default(cuid())
+  prescriptionId String
+  medicationName String
+  dosage         String
+  frequency      String
+  durationDays   Int
+  quantity       Int
+  instructions   String?
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}
+
+model MedicalCertificate {
+  id          String    @id @default(cuid())
+  encounterId String
+  patientId   String
+  doctorId    String
+  diagnosis   String
+  fitForWork  Boolean
+  fromDate    DateTime
+  toDate      DateTime
+  notes       String?
+  issuedAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  patient   Patient   @relation(fields: [patientId], references: [id])
+  doctor    Staff     @relation("DoctorCertificates", fields: [doctorId], references: [id])
+}
+
+model Referral {
+  id          String   @id @default(cuid())
+  encounterId String
+  patientId   String
+  doctorId    String
+  referredTo  String
+  reason      String
+  urgency     Urgency
+  notes       String?
+  issuedAt    DateTime?
+  createdAt   DateTime @default(now())
+
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  patient   Patient   @relation(fields: [patientId], references: [id])
+  doctor    Staff     @relation("DoctorReferrals", fields: [doctorId], references: [id])
 }
