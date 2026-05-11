@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { User, Calendar, Clock, CheckCircle } from 'lucide-react';
 
 type Staff = { id: string; name: string; specialisation: string };
 
-export default function BookAppointmentPage() {
+function BookAppointmentContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedStaffId = searchParams.get('staffId');
+
   const [step, setStep] = useState(1);
   const [doctorsList, setDoctorsList] = useState<Staff[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<Staff | null>(null);
@@ -18,8 +21,14 @@ export default function BookAppointmentPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/doctors').then(r => r.json()).then(setDoctorsList);
-  }, []);
+    fetch('/api/doctors').then(r => r.json()).then((list: Staff[]) => {
+      setDoctorsList(list);
+      if (preselectedStaffId) {
+        const match = list.find(d => d.id === preselectedStaffId);
+        if (match) setSelectedDoctor(match);
+      }
+    });
+  }, [preselectedStaffId]);
 
   const fetchSlots = async (staffId: string, date: string) => {
     const res = await fetch(`/api/appointments/slots?staffId=${staffId}&date=${date}`);
@@ -63,11 +72,11 @@ export default function BookAppointmentPage() {
 
       <div className="flex items-center justify-between mb-8 relative">
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 z-0 rounded-full"></div>
-        <div 
+        <div
           className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-blue-600 z-0 rounded-full transition-all duration-500"
           style={{ width: `${(step - 1) * 50}%` }}
         ></div>
-        
+
         {[1, 2, 3].map(i => (
           <div key={i} className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${step >= i ? 'bg-blue-600 text-white' : 'bg-white border-2 border-slate-200 text-slate-400'}`}>
             {step > i ? <CheckCircle size={20} /> : i}
@@ -75,7 +84,7 @@ export default function BookAppointmentPage() {
         ))}
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-h-[400px]">
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-h-100">
         {step === 1 && (
           <div className="space-y-6 animate-in fade-in flex-1 flex flex-col">
             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><User className="mr-2" /> Select Practitioner</h2>
@@ -92,7 +101,7 @@ export default function BookAppointmentPage() {
               ))}
               {doctorsList.length === 0 && <p className="text-slate-500 font-medium py-8 text-center bg-slate-50 rounded-xl border border-slate-100">Loading practitioners...</p>}
             </div>
-            <button 
+            <button
               disabled={!selectedDoctor}
               onClick={() => setStep(2)}
               className="mt-8 w-full bg-blue-600 disabled:bg-slate-300 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors"
@@ -107,14 +116,14 @@ export default function BookAppointmentPage() {
             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><Calendar className="mr-2 text-blue-600" /> Select Date & Time</h2>
             <div className="flex-1">
               <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 min={new Date().toISOString().split('T')[0]}
                 value={selectedDate}
                 onChange={handleDateChange}
                 className="w-full p-3.5 border-2 border-slate-200 bg-slate-50 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700"
               />
-            
+
               {selectedDate && (
                 <div className="mt-6">
                   <label className="block text-sm font-semibold text-slate-700 mb-3">Available Slots</label>
@@ -142,10 +151,10 @@ export default function BookAppointmentPage() {
                 </div>
               )}
             </div>
-            
+
             <div className="flex space-x-4 mt-8 pt-4 border-t border-slate-100">
               <button onClick={() => setStep(1)} className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors">Back</button>
-              <button 
+              <button
                 disabled={!selectedSlot}
                 onClick={() => setStep(3)}
                 className="w-2/3 bg-blue-600 disabled:bg-slate-300 hover:bg-blue-700 disabled:hover:bg-slate-300 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
@@ -158,8 +167,8 @@ export default function BookAppointmentPage() {
 
         {step === 3 && (
           <div className="space-y-6 animate-in slide-in-from-right-4 fade-in flex-1 flex flex-col">
-            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center text-blue-600"><CheckCircle className="mr-2" /> Review Details</h2>
-            
+            <h2 className="text-xl font-bold text-blue-600 mb-4 flex items-center"><CheckCircle className="mr-2" /> Review Details</h2>
+
             <div className="flex-1">
               <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 space-y-6">
                 <div>
@@ -180,7 +189,7 @@ export default function BookAppointmentPage() {
 
               <div className="mt-8">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Reason for Visit <span className="text-slate-400 font-normal">(Optional)</span></label>
-                <textarea 
+                <textarea
                   value={reason}
                   onChange={e => setReason(e.target.value)}
                   rows={3}
@@ -192,7 +201,7 @@ export default function BookAppointmentPage() {
 
             <div className="flex space-x-4 mt-8 pt-4 border-t border-slate-100">
               <button disabled={loading} onClick={() => setStep(2)} className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors">Back</button>
-              <button 
+              <button
                 disabled={loading}
                 onClick={handleSubmit}
                 className="w-2/3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait text-white font-bold py-3.5 rounded-xl transition-colors flex justify-center items-center shadow-md active:scale-95"
@@ -204,5 +213,13 @@ export default function BookAppointmentPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BookAppointmentPage() {
+  return (
+    <Suspense>
+      <BookAppointmentContent />
+    </Suspense>
   );
 }
