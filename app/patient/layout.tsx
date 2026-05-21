@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import NotificationsButton from '@/components/NotificationsButton';
 
 export default async function PatientLayout({
   children,
@@ -54,13 +55,16 @@ export default async function PatientLayout({
       {/* Main Content Area */}
       <main className="flex-1 h-screen overflow-y-auto w-full">
         {/* Mobile Top Bar */}
-        <div className="md:hidden bg-white shadow-sm p-4 flex justify-between items-center z-10 sticky top-0">
+        <div className="md:hidden bg-white shadow-sm px-4 py-3 flex justify-between items-center z-10 sticky top-0 gap-3">
           <h2 className="text-lg font-bold text-blue-600">ClinicPal</h2>
-          <nav className="flex space-x-4 text-sm font-medium">
-            <Link href="/patient/dashboard">Home</Link>
-            <Link href="/patient/appointments">Appts</Link>
-            <Link href="/patient/profile">Profile</Link>
-          </nav>
+          <div className="flex items-center gap-2">
+            <nav className="flex space-x-4 text-sm font-medium">
+              <Link href="/patient/dashboard">Home</Link>
+              <Link href="/patient/appointments">Appts</Link>
+              <Link href="/patient/profile">Profile</Link>
+            </nav>
+            <NotificationsButton />
+          </div>
         </div>
         
         <div className="p-6 md:p-10 max-w-6xl mx-auto">

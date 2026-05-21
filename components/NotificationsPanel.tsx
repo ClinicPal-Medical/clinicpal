@@ -77,8 +77,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function NotificationsPanel() {
-  const router = useRouter();
+export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,7 +95,7 @@ export default function NotificationsPanel() {
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
-  const patchNotification = async (id: string, action: 'read' | 'dismiss') => {
+  const patchNotification = useCallback(async (id: string, action: 'read' | 'dismiss') => {
     await fetch(`/api/notifications/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -109,35 +108,73 @@ export default function NotificationsPanel() {
         prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n)
       );
     }
-  };
+  }, []);
 
-  const handleAction = async (n: Notification) => {
-    if (!n.readAt) await patchNotification(n.id, 'read');
-    if (n.actionUrl) router.push(n.actionUrl);
-  };
-
-  const markAllRead = () => {
+  const markAllRead = useCallback(() => {
     const unread = notifications.filter(n => !n.readAt);
     Promise.all(unread.map(n => patchNotification(n.id, 'read')));
-  };
+  }, [notifications, patchNotification]);
 
   const unreadCount = notifications.filter(n => !n.readAt).length;
 
-  return (
-    <div className="w-80 shrink-0 sticky top-6 self-start">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+  return {
+    notifications,
+    loading,
+    refreshing,
+    fetchNotifications,
+    patchNotification,
+    markAllRead,
+    unreadCount,
+  };
+}
 
-        {/* Header */}
-        <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bell size={17} className="text-slate-500" />
-            <span className="font-bold text-slate-800 text-sm">Notifications</span>
-            {unreadCount > 0 && (
-              <span className="bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </div>
+type NotificationsState = ReturnType<typeof useNotifications>;
+
+type CardProps = NotificationsState & {
+  variant?: 'panel' | 'dialog';
+  onClose?: () => void;
+};
+
+export function NotificationsCard({
+  notifications,
+  loading,
+  refreshing,
+  fetchNotifications,
+  patchNotification,
+  markAllRead,
+  unreadCount,
+  variant = 'panel',
+  onClose,
+}: CardProps) {
+  const router = useRouter();
+  const isDialog = variant === 'dialog';
+
+  const handleAction = async (n: Notification) => {
+    if (!n.readAt) await patchNotification(n.id, 'read');
+    if (n.actionUrl) {
+      router.push(n.actionUrl);
+      onClose?.();
+    }
+  };
+
+  return (
+    <div
+      className={`bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden ${
+        isDialog ? 'flex flex-col max-h-[calc(100vh-2rem)]' : ''
+      }`}
+    >
+      {/* Header */}
+      <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <Bell size={17} className="text-slate-500 shrink-0" />
+          <span className="font-bold text-slate-800 text-sm">Notifications</span>
+          {unreadCount > 0 && (
+            <span className="bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none shrink-0">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
@@ -147,100 +184,118 @@ export default function NotificationsPanel() {
               Mark all read
             </button>
           )}
-        </div>
-
-        {/* Body */}
-        <div className="max-h-[72vh] overflow-y-auto">
-          {loading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse h-[72px] bg-slate-100 rounded-xl" />
-              ))}
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="px-4 py-10 text-center">
-              <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-400 rounded-full flex items-center justify-center mb-3">
-                <Check size={22} />
-              </div>
-              <p className="font-semibold text-slate-700 text-sm">You&apos;re all caught up</p>
-              <p className="text-xs text-slate-400 mt-1">No active notifications.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {notifications.map(n => {
-                const cfg = URGENCY_CONFIG[n.urgency];
-                const Icon = cfg.icon;
-                const isRead = !!n.readAt;
-                return (
-                  <div
-                    key={n.id}
-                    className={`border-l-4 ${cfg.border} ${isRead ? cfg.readBg : cfg.bg} transition-colors`}
-                  >
-                    <div className="px-4 pt-3 pb-2 flex items-start gap-2.5">
-                      <Icon size={15} className={`${cfg.iconColor} shrink-0 mt-0.5`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <p className={`text-sm leading-snug ${isRead ? 'font-medium text-slate-600' : 'font-bold text-slate-800'}`}>
-                            {n.title}
-                          </p>
-                          <button
-                            onClick={() => patchNotification(n.id, 'dismiss')}
-                            title="Dismiss"
-                            className="shrink-0 text-slate-300 hover:text-slate-500 transition-colors -mt-0.5 p-0.5 rounded"
-                          >
-                            <X size={13} />
-                          </button>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5 leading-snug line-clamp-2">
-                          {n.body}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
-                      </div>
-                    </div>
-
-                    {/* Action row */}
-                    {(n.actionUrl || !isRead) && (
-                      <div className="px-4 pb-3 pl-10 flex items-center gap-2">
-                        {n.actionUrl && (
-                          <button
-                            onClick={() => handleAction(n)}
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${cfg.actionClass}`}
-                          >
-                            {n.actionLabel ?? 'View'}
-                          </button>
-                        )}
-                        {!isRead && (
-                          <button
-                            onClick={() => patchNotification(n.id, 'read')}
-                            className="text-xs font-medium text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
-                          >
-                            <Check size={11} />
-                            Mark read
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close notifications"
+              className="text-slate-400 hover:text-slate-700 transition-colors p-0.5 -mr-1 rounded"
+            >
+              <X size={16} />
+            </button>
           )}
         </div>
+      </div>
 
-        {/* Footer */}
-        {!loading && (
-          <div className="px-4 py-2.5 border-t border-slate-100 flex justify-center">
-            <button
-              onClick={() => fetchNotifications(true)}
-              disabled={refreshing}
-              className="text-xs font-medium text-slate-400 hover:text-slate-600 flex items-center gap-1.5 transition-colors disabled:opacity-50"
-            >
-              <RotateCcw size={11} className={refreshing ? 'animate-spin' : ''} />
-              {refreshing ? 'Refreshing…' : 'Refresh'}
-            </button>
+      {/* Body */}
+      <div className={isDialog ? 'flex-1 overflow-y-auto' : 'max-h-[72vh] overflow-y-auto'}>
+        {loading ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse h-[72px] bg-slate-100 rounded-xl" />
+            ))}
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="px-4 py-10 text-center">
+            <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-400 rounded-full flex items-center justify-center mb-3">
+              <Check size={22} />
+            </div>
+            <p className="font-semibold text-slate-700 text-sm">You&apos;re all caught up</p>
+            <p className="text-xs text-slate-400 mt-1">No active notifications.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {notifications.map(n => {
+              const cfg = URGENCY_CONFIG[n.urgency];
+              const Icon = cfg.icon;
+              const isRead = !!n.readAt;
+              return (
+                <div
+                  key={n.id}
+                  className={`border-l-4 ${cfg.border} ${isRead ? cfg.readBg : cfg.bg} transition-colors`}
+                >
+                  <div className="px-4 pt-3 pb-2 flex items-start gap-2.5">
+                    <Icon size={15} className={`${cfg.iconColor} shrink-0 mt-0.5`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-1">
+                        <p className={`text-sm leading-snug ${isRead ? 'font-medium text-slate-600' : 'font-bold text-slate-800'}`}>
+                          {n.title}
+                        </p>
+                        <button
+                          onClick={() => patchNotification(n.id, 'dismiss')}
+                          title="Dismiss"
+                          className="shrink-0 text-slate-300 hover:text-slate-500 transition-colors -mt-0.5 p-0.5 rounded"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug line-clamp-2">
+                        {n.body}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  {(n.actionUrl || !isRead) && (
+                    <div className="px-4 pb-3 pl-10 flex items-center gap-2">
+                      {n.actionUrl && (
+                        <button
+                          onClick={() => handleAction(n)}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${cfg.actionClass}`}
+                        >
+                          {n.actionLabel ?? 'View'}
+                        </button>
+                      )}
+                      {!isRead && (
+                        <button
+                          onClick={() => patchNotification(n.id, 'read')}
+                          className="text-xs font-medium text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
+                        >
+                          <Check size={11} />
+                          Mark read
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      {!loading && (
+        <div className="px-4 py-2.5 border-t border-slate-100 flex justify-center">
+          <button
+            onClick={() => fetchNotifications(true)}
+            disabled={refreshing}
+            className="text-xs font-medium text-slate-400 hover:text-slate-600 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw size={11} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function NotificationsPanel() {
+  const state = useNotifications();
+  return (
+    <div className="hidden md:block w-80 shrink-0 sticky top-6 self-start">
+      <NotificationsCard {...state} />
     </div>
   );
 }
