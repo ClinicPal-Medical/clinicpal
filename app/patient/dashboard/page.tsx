@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/db';
 import Link from 'next/link';
 import { Calendar, ArrowRight, User, History, RotateCcw } from 'lucide-react';
+import NotificationsPanel from '@/components/NotificationsPanel';
 
 const STATUS_STYLES: Record<string, string> = {
   CONFIRMED: 'bg-green-100 text-green-700',
@@ -36,12 +37,13 @@ export default async function PatientDashboard() {
   ]);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex-1 min-w-0 space-y-8">
       <div>
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           Welcome back, {session?.user?.name?.split(' ')[0]}!
         </h1>
-        <p className="text-slate-500 mt-2 font-medium">Here's an overview of your health schedule.</p>
+        <p className="text-slate-500 mt-2 font-medium">Here&apos;s an overview of your health schedule.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 max-w-2xl">
@@ -152,6 +154,8 @@ export default async function PatientDashboard() {
           </div>
         )}
       </div>
+      </div>
+      <NotificationsPanel />
     </div>
   );
 }

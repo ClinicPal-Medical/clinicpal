@@ -234,3 +234,29 @@ model Referral {
   patient   Patient   @relation(fields: [patientId], references: [id])
   doctor    Staff     @relation("DoctorReferrals", fields: [doctorId], references: [id])
 }
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+
+enum NotificationUrgency {
+  INFO
+  WARNING
+  URGENT
+  CRITICAL
+}
+
+model Notification {
+  id            String              @id @default(cuid())
+  recipientId   String
+  recipientType String              // 'PATIENT' | 'STAFF'
+  title         String
+  body          String
+  urgency       NotificationUrgency @default(INFO)
+  actionUrl     String?
+  actionLabel   String?
+  externalKey   String              @unique
+  readAt        DateTime?
+  dismissedAt   DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@index([recipientId, recipientType])
+}

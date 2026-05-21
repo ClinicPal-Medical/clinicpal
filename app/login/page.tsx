@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { signIn, getSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useState } from "react";
+import { signIn, getSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
-    const res = await signIn('credentials', {
+    const res = await signIn("credentials", {
       redirect: false,
       email,
       password,
@@ -28,10 +28,10 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       const session = await getSession();
-      if (session?.user?.role && session.user.role !== 'PATIENT') {
-        router.push('/staff/dashboard');
+      if (session?.user?.role && session.user.role !== "PATIENT") {
+        router.push("/staff/dashboard");
       } else {
-        router.push('/patient/dashboard');
+        router.push("/patient/dashboard");
       }
     }
   };
@@ -45,8 +45,12 @@ export default function LoginPage() {
               +
             </div>
           </div>
-          <h2 className="text-3xl font-extrabold text-slate-900 text-center tracking-tight mb-2">Welcome Back</h2>
-          <p className="text-center text-slate-500 font-medium mb-8">Sign in to manage your appointments.</p>
+          <h2 className="text-3xl font-extrabold text-slate-900 text-center tracking-tight mb-2">
+            Welcome Back
+          </h2>
+          <p className="text-center text-slate-500 font-medium mb-8">
+            Sign in to manage your appointments.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
@@ -54,9 +58,11 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            
+
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Email Address
+              </label>
               <input
                 type="email"
                 required
@@ -66,9 +72,11 @@ export default function LoginPage() {
                 placeholder="john.doe@example.com"
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Password
+              </label>
               <input
                 type="password"
                 required
@@ -78,26 +86,43 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-4 rounded-xl transition-all shadow-md shadow-blue-200 active:scale-95 text-lg"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           <div className="mt-8 text-center bg-slate-50 p-4 rounded-xl">
-             <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Demo Credentials</p>
-             <p className="text-sm font-semibold text-slate-700">john.doe@example.com <br/> jane.smith@example.com</p>
-             <p className="text-sm text-slate-500 mt-1">Password: <span className="font-mono bg-slate-200 px-1 py-0.5 rounded text-slate-700">password123</span></p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">
+              Demo Credentials
+            </p>
+            <p className="text-sm font-semibold text-slate-700">
+              john.doe@example.com <br /> jane.smith@example.com
+            </p>
+            <p className="text-sm font-semibold text-slate-700">
+              nurse@clinicpal.com <br /> doctor@clinicpal.com
+            </p>
+            <p className="text-sm text-slate-500 mt-1">
+              <span className="font-mono bg-slate-200 px-1 py-0.5 rounded text-slate-700">
+                password123
+              </span>
+            </p>
           </div>
 
           <div className="mt-6 text-center">
-             <p className="text-sm font-medium text-slate-500">
-               Don't have an account? <Link href="/signup" className="text-blue-600 font-bold hover:underline">Sign up</Link>
-             </p>
+            <p className="text-sm font-medium text-slate-500">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/signup"
+                className="text-blue-600 font-bold hover:underline"
+              >
+                Sign up
+              </Link>
+            </p>
           </div>
         </div>
       </div>
