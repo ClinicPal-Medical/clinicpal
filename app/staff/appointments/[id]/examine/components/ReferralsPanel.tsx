@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import StatusBadge from '@/components/StatusBadge';
 import {
   AddDocumentButton,
@@ -82,6 +83,13 @@ const URGENCY_TONES: Record<Urgency, string> = {
   EMERGENCY: 'bg-red-100 text-red-700 border-red-200',
 };
 
+type ReferralFormValues = {
+  referredTo: string;
+  reason: string;
+  urgency: Urgency;
+  notes: string;
+};
+
 function AddReferralForm({
   appointmentId,
   onCreated,
@@ -91,23 +99,25 @@ function AddReferralForm({
   onCreated: (r: ReferralData) => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState({
-    referredTo: '',
-    reason: '',
-    urgency: 'ROUTINE' as Urgency,
-    notes: '',
-  });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { isSubmitting },
+  } = useForm<ReferralFormValues>({
+    defaultValues: { referredTo: '', reason: '', urgency: 'ROUTINE', notes: '' },
+  });
+  const urgency = watch('urgency');
 
-  const handleSave = async () => {
-    setSaving(true);
+  const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       const res = await fetch(`/api/staff/encounters/${appointmentId}/referrals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(values),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -117,27 +127,24 @@ function AddReferralForm({
       onCreated(data.referral);
     } catch {
       setError('Network error.');
-    } finally {
-      setSaving(false);
     }
-  };
+  });
 
   const input = docInputStyle('amber');
 
   return (
     <DocumentDraftForm
       tone="amber"
-      onSave={handleSave}
+      onSave={onSubmit}
       onCancel={onCancel}
-      saving={saving}
+      saving={isSubmitting}
       error={error}
     >
       <div className="flex flex-col gap-3">
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Refer To *</label>
           <input
-            value={form.referredTo}
-            onChange={(e) => setForm({ ...form, referredTo: e.target.value })}
+            {...register('referredTo', { required: true })}
             placeholder="e.g. ENT Specialist — City Hospital"
             className={input}
           />
@@ -145,8 +152,7 @@ function AddReferralForm({
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Reason *</label>
           <textarea
-            value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            {...register('reason', { required: true })}
             placeholder="Reason for referral…"
             rows={2}
             className={`${input} resize-y`}
@@ -158,9 +164,10 @@ function AddReferralForm({
             {(['ROUTINE', 'URGENT', 'EMERGENCY'] as const).map((u) => (
               <button
                 key={u}
-                onClick={() => setForm({ ...form, urgency: u })}
+                type="button"
+                onClick={() => setValue('urgency', u)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors border ${
-                  form.urgency === u
+                  urgency === u
                     ? URGENCY_TONES[u]
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                 }`}
@@ -173,8 +180,7 @@ function AddReferralForm({
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Notes (optional)</label>
           <textarea
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            {...register('notes')}
             placeholder="Additional context…"
             rows={2}
             className={`${input} resize-y`}

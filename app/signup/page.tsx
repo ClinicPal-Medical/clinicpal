@@ -1,50 +1,50 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/Button';
 import TextField from '@/components/TextField';
 
+type FormValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dob: string;
+  password: string;
+};
+
 export default function SignupPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    dob: '',
-    password: ''
-  });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting, errors },
+  } = useForm<FormValues>();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const onSubmit = async (data: FormValues) => {
     setError('');
-
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Failed to register');
-        setLoading(false);
-      } else {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/login');
-        }, 2000);
+        const body = await res.json();
+        setError(body.error || 'Failed to register');
+        return;
       }
-    } catch (err: any) {
+
+      setSuccess(true);
+      setTimeout(() => router.push('/login'), 2000);
+    } catch {
       setError('An unexpected error occurred.');
-      setLoading(false);
     }
   };
 
@@ -67,29 +67,27 @@ export default function SignupPage() {
           <h2 className="text-3xl font-extrabold text-slate-900 text-center tracking-tight mb-2">Join ClinicPal</h2>
           <p className="text-center text-slate-500 font-medium mb-8">Create your patient portal account.</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold text-center">
                 {error}
               </div>
             )}
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextField
                 label="First Name"
                 type="text"
-                required
-                value={formData.firstName}
-                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                 placeholder="John"
+                error={errors.firstName?.message}
+                {...register('firstName', { required: 'First name is required' })}
               />
               <TextField
                 label="Last Name"
                 type="text"
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                 placeholder="Doe"
+                error={errors.lastName?.message}
+                {...register('lastName', { required: 'Last name is required' })}
               />
             </div>
 
@@ -97,19 +95,22 @@ export default function SignupPage() {
               <TextField
                 label="Email Address"
                 type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
                 placeholder="john@example.com"
+                error={errors.email?.message}
+                {...register('email', {
+                  required: 'Email is required',
+                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Invalid email address' },
+                })}
               />
               <TextField
                 label="Password"
                 type="password"
-                required
-                minLength={8}
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
                 placeholder="••••••••"
+                error={errors.password?.message}
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: { value: 8, message: 'Must be at least 8 characters' },
+                })}
               />
             </div>
 
@@ -117,17 +118,15 @@ export default function SignupPage() {
               <TextField
                 label="Date of Birth"
                 type="date"
-                required
                 max={new Date().toISOString().split('T')[0]}
-                value={formData.dob}
-                onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                error={errors.dob?.message}
+                {...register('dob', { required: 'Date of birth is required' })}
               />
               <TextField
                 label="Phone (Optional)"
                 type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
                 placeholder="(555) 123-4567"
+                {...register('phone')}
               />
             </div>
 
@@ -135,7 +134,7 @@ export default function SignupPage() {
               type="submit"
               size="lg"
               fullWidth
-              loading={loading}
+              loading={isSubmitting}
               loadingText="Creating account..."
               className="mt-4"
             >

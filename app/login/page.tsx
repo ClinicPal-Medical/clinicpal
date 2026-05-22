@@ -1,41 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
 import TextField from "@/components/TextField";
 
+type FormValues = { email: string; password: string };
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<FormValues>();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const onSubmit = async ({ email, password }: FormValues) => {
     setError("");
-
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
+    const res = await signIn("credentials", { redirect: false, email, password });
 
     if (res?.error) {
       setError(res.error);
-      setLoading(false);
-    } else {
-      const session = await getSession();
-      if (session?.user?.role && session.user.role !== "PATIENT") {
-        router.push("/staff/dashboard");
-      } else {
-        router.push("/patient/dashboard");
-      }
+      return;
     }
+    const session = await getSession();
+    router.push(
+      session?.user?.role && session.user.role !== "PATIENT"
+        ? "/staff/dashboard"
+        : "/patient/dashboard",
+    );
   };
 
   return (
@@ -54,7 +51,7 @@ export default function LoginPage() {
             Sign in to manage your appointments.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {error && (
               <div className="p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold text-center">
                 {error}
@@ -64,26 +61,22 @@ export default function LoginPage() {
             <TextField
               label="Email Address"
               type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="john.doe@example.com"
+              {...register("email", { required: "Email is required" })}
             />
 
             <TextField
               label="Password"
               type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              {...register("password", { required: "Password is required" })}
             />
 
             <Button
               type="submit"
               size="lg"
               fullWidth
-              loading={loading}
+              loading={isSubmitting}
               loadingText="Signing in..."
             >
               Sign In

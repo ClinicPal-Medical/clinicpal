@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import StatusBadge from '@/components/StatusBadge';
 import {
   AddDocumentButton,
@@ -79,6 +80,14 @@ function CertCard({
   );
 }
 
+type CertFormValues = {
+  diagnosis: string;
+  fitForWork: boolean;
+  fromDate: string;
+  toDate: string;
+  notes: string;
+};
+
 function AddCertForm({
   appointmentId,
   onCreated,
@@ -88,24 +97,28 @@ function AddCertForm({
   onCreated: (c: CertificateData) => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState({
-    diagnosis: '',
-    fitForWork: false,
-    fromDate: today(),
-    toDate: today(),
-    notes: '',
-  });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<CertFormValues>({
+    defaultValues: {
+      diagnosis: '',
+      fitForWork: false,
+      fromDate: today(),
+      toDate: today(),
+      notes: '',
+    },
+  });
 
-  const handleSave = async () => {
-    setSaving(true);
+  const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       const res = await fetch(`/api/staff/encounters/${appointmentId}/certificates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(values),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -115,27 +128,24 @@ function AddCertForm({
       onCreated(data.certificate);
     } catch {
       setError('Network error.');
-    } finally {
-      setSaving(false);
     }
-  };
+  });
 
   const input = docInputStyle('emerald');
 
   return (
     <DocumentDraftForm
       tone="emerald"
-      onSave={handleSave}
+      onSave={onSubmit}
       onCancel={onCancel}
-      saving={saving}
+      saving={isSubmitting}
       error={error}
     >
       <div className="flex flex-col gap-2.5">
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Diagnosis *</label>
           <input
-            value={form.diagnosis}
-            onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
+            {...register('diagnosis', { required: true })}
             placeholder="e.g. Acute respiratory infection"
             className={input}
           />
@@ -145,8 +155,7 @@ function AddCertForm({
           <label className="text-xs text-slate-700 flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={form.fitForWork}
-              onChange={(e) => setForm({ ...form, fitForWork: e.target.checked })}
+              {...register('fitForWork')}
               className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />
             Fit for work
@@ -156,29 +165,18 @@ function AddCertForm({
         <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="text-[10px] text-slate-500 block mb-1">From Date *</label>
-            <input
-              type="date"
-              value={form.fromDate}
-              onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
-              className={input}
-            />
+            <input type="date" {...register('fromDate', { required: true })} className={input} />
           </div>
           <div>
             <label className="text-[10px] text-slate-500 block mb-1">To Date *</label>
-            <input
-              type="date"
-              value={form.toDate}
-              onChange={(e) => setForm({ ...form, toDate: e.target.value })}
-              className={input}
-            />
+            <input type="date" {...register('toDate', { required: true })} className={input} />
           </div>
         </div>
 
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Notes (optional)</label>
           <textarea
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            {...register('notes')}
             placeholder="Additional notes…"
             rows={2}
             className={`${input} resize-y`}

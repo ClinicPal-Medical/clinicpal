@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -30,7 +31,11 @@ export default function AppointmentsQueue() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeAppt, setActiveAppt] = useState<any>(null);
-  const [notes, setNotes] = useState("");
+  const {
+    register: registerComplete,
+    handleSubmit: handleCompleteForm,
+    reset: resetCompleteForm,
+  } = useForm<{ notes: string }>({ defaultValues: { notes: "" } });
 
   useEffect(() => {
     fetch("/api/staff")
@@ -67,13 +72,17 @@ export default function AppointmentsQueue() {
     fetchAppointments();
   };
 
-  const handleCompleteSubmit = () => {
-    if (activeAppt) {
-      updateStatus(activeAppt.id, "COMPLETED", notes);
-      setIsModalOpen(false);
-      setNotes("");
-    }
+  const closeCompleteModal = () => {
+    setIsModalOpen(false);
+    setActiveAppt(null);
+    resetCompleteForm({ notes: "" });
   };
+
+  const onCompleteSubmit = handleCompleteForm(({ notes }) => {
+    if (!activeAppt) return;
+    updateStatus(activeAppt.id, "COMPLETED", notes);
+    closeCompleteModal();
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -241,11 +250,8 @@ export default function AppointmentsQueue() {
 
       <Modal
         open={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setNotes("");
-          setActiveAppt(null);
-        }}
+        onClose={closeCompleteModal}
+        onSubmit={onCompleteSubmit}
         maxWidth="lg"
       >
         <h2 className="text-xl font-bold text-slate-900 mb-2">
@@ -260,10 +266,9 @@ export default function AppointmentsQueue() {
           <div className="mb-6">
             <TextareaField
               label="Clinical Notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
               placeholder="Record outcome, observations, prescriptions..."
               className="h-32 resize-none"
+              {...registerComplete("notes")}
             />
           </div>
         ) : (
@@ -274,17 +279,10 @@ export default function AppointmentsQueue() {
         )}
 
         <div className="flex space-x-3 justify-end">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setIsModalOpen(false);
-              setNotes("");
-              setActiveAppt(null);
-            }}
-          >
+          <Button variant="ghost" type="button" onClick={closeCompleteModal}>
             Cancel
           </Button>
-          <Button onClick={handleCompleteSubmit}>Save & Complete</Button>
+          <Button type="submit">Save & Complete</Button>
         </div>
       </Modal>
     </div>

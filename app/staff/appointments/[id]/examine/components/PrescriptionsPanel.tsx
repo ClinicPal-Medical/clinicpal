@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { Plus, AlertTriangle, X } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import {
@@ -151,36 +152,25 @@ function AddPrescriptionForm({
   onCreated: (p: PrescriptionData) => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState<PrescriptionForm>({ ...EMPTY_FORM });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { isSubmitting },
+  } = useForm<PrescriptionForm>({ defaultValues: { ...EMPTY_FORM } });
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const type = watch('type');
 
-  const updateItem = (
-    index: number,
-    field: keyof PrescriptionItemForm,
-    value: string | number,
-  ) => {
-    const items = [...form.items];
-    items[index] = { ...items[index], [field]: value };
-    setForm({ ...form, items });
-  };
-
-  const addRow = () =>
-    setForm({ ...form, items: [...form.items, { ...EMPTY_ITEM }] });
-
-  const removeRow = (i: number) => {
-    if (form.items.length === 1) return;
-    setForm({ ...form, items: form.items.filter((_, idx) => idx !== i) });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
+  const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       const res = await fetch(`/api/staff/encounters/${appointmentId}/prescriptions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(values),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -192,19 +182,17 @@ function AddPrescriptionForm({
       onCreated(data.prescription);
     } catch {
       setError('Network error. Please try again.');
-    } finally {
-      setSaving(false);
     }
-  };
+  });
 
   const input = docInputStyle('blue');
 
   return (
     <DocumentDraftForm
       tone="blue"
-      onSave={handleSave}
+      onSave={onSubmit}
       onCancel={onCancel}
-      saving={saving}
+      saving={isSubmitting}
       error={error}
     >
       {/* Type toggle */}
@@ -216,9 +204,10 @@ function AddPrescriptionForm({
           {(['EXTERNAL', 'INTERNAL'] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setForm({ ...form, type: t })}
+              type="button"
+              onClick={() => setValue('type', t)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                form.type === t
+                type === t
                   ? t === 'INTERNAL'
                     ? 'bg-blue-500 text-white shadow-sm'
                     : 'bg-purple-500 text-white shadow-sm'
@@ -231,7 +220,7 @@ function AddPrescriptionForm({
         </div>
       </div>
 
-      {form.type === 'INTERNAL' && (
+      {type === 'INTERNAL' && (
         <datalist id="stock-items-list">
           {stockItems.map((s) => (
             <option key={s.id} value={s.name} />
@@ -244,24 +233,22 @@ function AddPrescriptionForm({
         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
           Medications
         </label>
-        {form.items.map((item, i) => (
-          <div key={i} className="mb-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+        {fields.map((field, i) => (
+          <div key={field.id} className="mb-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
             <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 mb-2">
               <div>
                 <label className="text-[10px] text-slate-500 block mb-1">Medication Name</label>
                 <input
-                  list={form.type === 'INTERNAL' ? 'stock-items-list' : undefined}
-                  value={item.medicationName}
-                  onChange={(e) => updateItem(i, 'medicationName', e.target.value)}
-                  placeholder={form.type === 'INTERNAL' ? 'Search stock items…' : 'Medication name…'}
+                  list={type === 'INTERNAL' ? 'stock-items-list' : undefined}
+                  {...register(`items.${i}.medicationName` as const)}
+                  placeholder={type === 'INTERNAL' ? 'Search stock items…' : 'Medication name…'}
                   className={input}
                 />
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 block mb-1">Dosage</label>
                 <input
-                  value={item.dosage}
-                  onChange={(e) => updateItem(i, 'dosage', e.target.value)}
+                  {...register(`items.${i}.dosage` as const)}
                   placeholder="e.g. 500mg"
                   className={input}
                 />
@@ -269,8 +256,7 @@ function AddPrescriptionForm({
               <div>
                 <label className="text-[10px] text-slate-500 block mb-1">Frequency</label>
                 <input
-                  value={item.frequency}
-                  onChange={(e) => updateItem(i, 'frequency', e.target.value)}
+                  {...register(`items.${i}.frequency` as const)}
                   placeholder="e.g. Twice daily"
                   className={input}
                 />
@@ -282,8 +268,7 @@ function AddPrescriptionForm({
                 <input
                   type="number"
                   min={1}
-                  value={item.durationDays}
-                  onChange={(e) => updateItem(i, 'durationDays', Number(e.target.value))}
+                  {...register(`items.${i}.durationDays` as const, { valueAsNumber: true })}
                   className={input}
                 />
               </div>
@@ -292,25 +277,24 @@ function AddPrescriptionForm({
                 <input
                   type="number"
                   min={1}
-                  value={item.quantity}
-                  onChange={(e) => updateItem(i, 'quantity', Number(e.target.value))}
+                  {...register(`items.${i}.quantity` as const, { valueAsNumber: true })}
                   className={input}
                 />
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 block mb-1">Instructions</label>
                 <input
-                  value={item.instructions}
-                  onChange={(e) => updateItem(i, 'instructions', e.target.value)}
+                  {...register(`items.${i}.instructions` as const)}
                   placeholder="Take with food…"
                   className={input}
                 />
               </div>
               <button
-                onClick={() => removeRow(i)}
-                disabled={form.items.length === 1}
+                type="button"
+                onClick={() => remove(i)}
+                disabled={fields.length === 1}
                 className={`p-2 rounded-md transition-colors self-end border border-transparent ${
-                  form.items.length === 1
+                  fields.length === 1
                     ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
                     : 'bg-red-50 text-red-500 hover:bg-red-100 border-red-100 cursor-pointer'
                 }`}
@@ -321,7 +305,8 @@ function AddPrescriptionForm({
           </div>
         ))}
         <button
-          onClick={addRow}
+          type="button"
+          onClick={() => append({ ...EMPTY_ITEM })}
           className="text-xs text-blue-600 bg-transparent border-none cursor-pointer py-1 flex items-center gap-1 hover:text-blue-700 font-medium"
         >
           <Plus size={13} /> Add another medication
@@ -332,8 +317,7 @@ function AddPrescriptionForm({
       <div className="mb-3.5">
         <label className="text-[10px] text-slate-500 block mb-1">Notes (optional)</label>
         <textarea
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          {...register('notes')}
           placeholder="Dispensing or patient instructions…"
           className={`${input} min-h-[56px] resize-y`}
           rows={2}

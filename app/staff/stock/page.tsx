@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useForm } from "react-hook-form";
 import { useSession } from "next-auth/react";
 import {
   Package,
@@ -13,11 +14,12 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { ca, el, tr } from "date-fns/locale";
-import { set } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import TextField from "@/components/TextField";
 
 type StockItem = {
   id: string;
@@ -31,7 +33,7 @@ type StockItem = {
   status: string;
 };
 
-type FormState = {
+type AddFormValues = {
   name: string;
   category: string;
   quantity: string;
@@ -41,7 +43,13 @@ type FormState = {
   expiry: string;
 };
 
-const EMPTY_FORM: FormState = {
+type AdjustFormValues = {
+  quantityDelta: string;
+  type: string;
+  notes: string;
+};
+
+const EMPTY_ADD_FORM: AddFormValues = {
   name: "",
   category: "",
   quantity: "",
@@ -49,6 +57,14 @@ const EMPTY_FORM: FormState = {
   unitCost: "",
   supplier: "",
   expiry: "",
+};
+
+const wholeNumberRule = (label: string) => (v: string) => {
+  if (v === "") return `${label} is required`;
+  const n = Number(v);
+  if (isNaN(n) || !Number.isInteger(n) || n < 0)
+    return `${label} must be a whole number (0 or more)`;
+  return true;
 };
 
 export default function StockInventory() {
@@ -62,33 +78,47 @@ export default function StockInventory() {
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Adjust modal
-  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<StockItem | null>(null);
-  const [quantityDelta, setQuantityDelta] = useState("");
-  const [type, setType] = useState("RECEIVED");
-  const [notes, setNotes] = useState("");
-
-  // Add / Update modal
+  // ─── Add / Update modal ──────────────────────────────────────────────────────
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState<Partial<FormState>>({});
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<StockItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [apiErrors, setApiErrors] = useState<Error | null>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
+  const {
+    register: registerAdd,
+    handleSubmit: handleAddForm,
+    reset: resetAdd,
+    watch: watchAdd,
+    formState: { errors: addErrors, isSubmitting: addSubmitting },
+  } = useForm<AddFormValues>({ defaultValues: EMPTY_ADD_FORM });
+
+  const nameValue = watchAdd("name");
+  const isUpdating = !!selectedItemId;
+
+  // ─── Adjust modal ────────────────────────────────────────────────────────────
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState<StockItem | null>(null);
+  const [apiErrors, setApiErrors] = useState<Error | null>(null);
+
+  const {
+    register: registerAdjust,
+    handleSubmit: handleAdjustForm,
+    reset: resetAdjust,
+  } = useForm<AdjustFormValues>({
+    defaultValues: { quantityDelta: "", type: "RECEIVED", notes: "" },
+  });
+
+  // ─── Effects ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchItems();
   }, []);
 
   // Live name search — triggers after 3 chars when no item is already selected
   useEffect(() => {
-    if (selectedItemId || form.name.length < 3) {
+    if (selectedItemId || nameValue.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -97,7 +127,7 @@ export default function StockInventory() {
       setSearchLoading(true);
       try {
         const res = await fetch(
-          `/api/staff/stock/search?q=${encodeURIComponent(form.name)}`,
+          `/api/staff/stock/search?q=${encodeURIComponent(nameValue)}`,
         );
         if (res.ok) {
           const data: StockItem[] = await res.json();
@@ -109,7 +139,7 @@ export default function StockInventory() {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [form.name, selectedItemId]);
+  }, [nameValue, selectedItemId]);
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -135,17 +165,17 @@ export default function StockInventory() {
     setLoading(false);
   };
 
-  const resetAddForm = () => {
-    setForm(EMPTY_FORM);
-    setFormErrors({});
+  const closeAddModal = () => {
+    setIsAddOpen(false);
     setSelectedItemId(null);
     setSuggestions([]);
     setShowSuggestions(false);
+    resetAdd(EMPTY_ADD_FORM);
   };
 
   const selectSuggestion = (item: StockItem) => {
     setSelectedItemId(item.id);
-    setForm({
+    resetAdd({
       name: item.name,
       category: item.category,
       quantity: String(item.quantity),
@@ -156,94 +186,40 @@ export default function StockInventory() {
         ? new Date(item.expiry).toISOString().split("T")[0]
         : "",
     });
-    setFormErrors({});
     setSuggestions([]);
     setShowSuggestions(false);
   };
 
-  const handleNameChange = (value: string) => {
-    if (selectedItemId) setSelectedItemId(null);
-    setForm((prev) => ({ ...prev, name: value }));
-  };
-
-  const validateForm = (): Partial<FormState> => {
-    const errors: Partial<FormState> = {};
-    if (!form.name.trim()) errors.name = "Name is required";
-    if (!form.category.trim()) errors.category = "Category is required";
-
-    const qty = Number(form.quantity);
-    if (
-      form.quantity === "" ||
-      isNaN(qty) ||
-      !Number.isInteger(qty) ||
-      qty < 0
-    ) {
-      errors.quantity = "Quantity must be a whole number (0 or more)";
-    }
-
-    const threshold = Number(form.reorderThreshold);
-    if (
-      form.reorderThreshold === "" ||
-      isNaN(threshold) ||
-      !Number.isInteger(threshold) ||
-      threshold < 0
-    ) {
-      errors.reorderThreshold = "Must be a whole number (0 or more)";
-    }
-
-    const cost = Number(form.unitCost);
-    if (form.unitCost === "" || isNaN(cost) || cost <= 0) {
-      errors.unitCost = "Must be a positive number";
-    }
-
-    return errors;
-  };
-
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setSubmitting(true);
+  const onAddSubmit = handleAddForm(async (values) => {
     const payload = {
-      name: form.name.trim(),
-      category: form.category.trim(),
-      quantity: parseInt(form.quantity),
-      reorderThreshold: parseInt(form.reorderThreshold),
-      unitCost: parseFloat(form.unitCost),
-      supplier: form.supplier.trim() || null,
-      expiry: form.expiry ? new Date(form.expiry).toISOString() : null,
+      name: values.name.trim(),
+      category: values.category.trim(),
+      quantity: parseInt(values.quantity),
+      reorderThreshold: parseInt(values.reorderThreshold),
+      unitCost: parseFloat(values.unitCost),
+      supplier: values.supplier.trim() || null,
+      expiry: values.expiry ? new Date(values.expiry).toISOString() : null,
     };
 
-    try {
-      if (selectedItemId) {
-        await fetch(`/api/staff/stock/${selectedItemId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/staff/stock", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-      setIsAddOpen(false);
-      resetAddForm();
-      fetchItems();
-    } finally {
-      setSubmitting(false);
+    if (selectedItemId) {
+      await fetch(`/api/staff/stock/${selectedItemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetch("/api/staff/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     }
-  };
+    closeAddModal();
+    fetchItems();
+  });
 
-  const handleAdjustSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onAdjustSubmit = handleAdjustForm(async (values) => {
     setApiErrors(null);
-
     try {
       const response = await fetch(
         `/api/staff/stock/${activeItem!.id}/adjust`,
@@ -251,24 +227,22 @@ export default function StockInventory() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            quantityDelta: parseInt(quantityDelta),
-            type,
-            notes,
+            quantityDelta: parseInt(values.quantityDelta),
+            type: values.type,
+            notes: values.notes,
           }),
         },
       );
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to adjust stock");
-      } else {
-        setIsAdjustOpen(false);
-        fetchItems();
       }
+      setIsAdjustOpen(false);
+      fetchItems();
     } catch (e) {
       setApiErrors(e instanceof Error ? e : new Error("Unknown error"));
     }
-  };
+  });
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this item completely?"))
@@ -307,7 +281,8 @@ export default function StockInventory() {
   ).length;
   const expiringCount = items.filter((i) => i.status === "EXPIRING").length;
 
-  const isUpdating = !!selectedItemId;
+  // Bridge the RHF ref with our local ref for the name input
+  const nameRegister = registerAdd("name", { required: "Name is required" });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -319,7 +294,8 @@ export default function StockInventory() {
             {canManageStock && (
               <button
                 onClick={() => {
-                  resetAddForm();
+                  resetAdd(EMPTY_ADD_FORM);
+                  setSelectedItemId(null);
                   setIsAddOpen(true);
                 }}
                 className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-md text-sm"
@@ -399,9 +375,12 @@ export default function StockInventory() {
                       <button
                         onClick={() => {
                           setActiveItem(i);
-                          setQuantityDelta("");
-                          setType("RECEIVED");
-                          setNotes("");
+                          resetAdjust({
+                            quantityDelta: "",
+                            type: "RECEIVED",
+                            notes: "",
+                          });
+                          setApiErrors(null);
                           setIsAdjustOpen(true);
                         }}
                         className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-xs rounded-lg transition-colors"
@@ -426,332 +405,224 @@ export default function StockInventory() {
       </div>
 
       {/* Add / Update Stock Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form
-            onSubmit={handleAddSubmit}
-            className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-300"
-          >
-            <div className="flex items-start justify-between mb-5">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  {isUpdating ? "Update Stock Item" : "Add New Stock Item"}
-                </h2>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  {isUpdating
-                    ? "Editing an existing item — changes will be saved to the record."
-                    : "Search for an existing item or fill in details to add a new one."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddOpen(false);
-                  resetAddForm();
-                }}
-                className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Name with live search */}
-              <div className="relative">
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                  Item Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    ref={nameInputRef}
-                    type="text"
-                    required
-                    placeholder="Type to search or enter a new name…"
-                    value={form.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    onFocus={() =>
-                      suggestions.length > 0 && setShowSuggestions(true)
-                    }
-                    className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 pr-9 ${formErrors.name ? "border-red-300" : "border-slate-200"}`}
-                  />
-                  {searchLoading && (
-                    <Loader2
-                      size={16}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 animate-spin"
-                    />
-                  )}
-                  {isUpdating && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                      Existing
-                    </span>
-                  )}
-                </div>
-                {formErrors.name && (
-                  <p className="text-xs text-red-500 mt-1 font-medium">
-                    {formErrors.name}
-                  </p>
-                )}
-
-                {/* Suggestions dropdown */}
-                {showSuggestions && (
-                  <div
-                    ref={suggestionsRef}
-                    className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
-                  >
-                    {suggestions.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => selectSuggestion(s)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-blue-50 transition-colors text-left"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-800 text-sm">
-                            {s.name}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {s.category} · {s.quantity} in stock
-                          </p>
-                        </div>
-                        <StatusBadge status={s.status} size="sm" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                  Category <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Medications, Consumables…"
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, category: e.target.value }))
-                  }
-                  className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 ${formErrors.category ? "border-red-300" : "border-slate-200"}`}
-                />
-                {formErrors.category && (
-                  <p className="text-xs text-red-500 mt-1 font-medium">
-                    {formErrors.category}
-                  </p>
-                )}
-              </div>
-
-              {/* Quantity + Reorder Threshold */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    Quantity <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                    value={form.quantity}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, quantity: e.target.value }))
-                    }
-                    className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 ${formErrors.quantity ? "border-red-300" : "border-slate-200"}`}
-                  />
-                  {formErrors.quantity && (
-                    <p className="text-xs text-red-500 mt-1 font-medium">
-                      {formErrors.quantity}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    Reorder Threshold <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                    value={form.reorderThreshold}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        reorderThreshold: e.target.value,
-                      }))
-                    }
-                    className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 ${formErrors.reorderThreshold ? "border-red-300" : "border-slate-200"}`}
-                  />
-                  {formErrors.reorderThreshold && (
-                    <p className="text-xs text-red-500 mt-1 font-medium">
-                      {formErrors.reorderThreshold}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Unit Cost + Supplier */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    Unit Cost ($) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0.01"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={form.unitCost}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, unitCost: e.target.value }))
-                    }
-                    className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 ${formErrors.unitCost ? "border-red-300" : "border-slate-200"}`}
-                  />
-                  {formErrors.unitCost && (
-                    <p className="text-xs text-red-500 mt-1 font-medium">
-                      {formErrors.unitCost}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    Supplier
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Optional"
-                    value={form.supplier}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, supplier: e.target.value }))
-                    }
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700"
-                  />
-                </div>
-              </div>
-
-              {/* Expiry Date */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                  Expiry Date
-                </label>
-                <input
-                  type="date"
-                  value={form.expiry}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, expiry: e.target.value }))
-                  }
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700"
-                />
-              </div>
-            </div>
-
-            <div className="flex space-x-3 justify-end mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddOpen(false);
-                  resetAddForm();
-                }}
-                className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-colors text-sm flex items-center gap-2"
-              >
-                {submitting && <Loader2 size={14} className="animate-spin" />}
-                {isUpdating ? "Update Stock" : "Add New Stock"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Adjust Stock Modal */}
-      {isAdjustOpen && activeItem && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form
-            onSubmit={handleAdjustSubmit}
-            className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-300"
-          >
-            <h2 className="text-xl font-bold text-slate-900 mb-1">
-              Adjust Stock
+      <Modal open={isAddOpen} onClose={closeAddModal} onSubmit={onAddSubmit} maxWidth="lg">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              {isUpdating ? "Update Stock Item" : "Add New Stock Item"}
             </h2>
-            <p className="text-sm text-slate-500 mb-6">
-              Updating levels for{" "}
-              <span className="font-bold">{activeItem.name}</span>.
+            <p className="text-sm text-slate-500 mt-0.5">
+              {isUpdating
+                ? "Editing an existing item — changes will be saved to the record."
+                : "Search for an existing item or fill in details to add a new one."}
             </p>
-            {apiErrors && (
-              <div className="bg-red-50 text-red-700 px-4 py-2 rounded mb-4">
-                {apiErrors.message}
+          </div>
+          <button
+            type="button"
+            onClick={closeAddModal}
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Name with live search */}
+          <div className="relative">
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">
+              Item Name <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                {...nameRegister}
+                ref={(el) => {
+                  nameRegister.ref(el);
+                  nameInputRef.current = el;
+                }}
+                onChange={(e) => {
+                  nameRegister.onChange(e);
+                  if (selectedItemId) setSelectedItemId(null);
+                }}
+                type="text"
+                placeholder="Type to search or enter a new name…"
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 pr-9 ${addErrors.name ? "border-red-300" : "border-slate-200"}`}
+              />
+              {searchLoading && (
+                <Loader2
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 animate-spin"
+                />
+              )}
+              {isUpdating && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                  Existing
+                </span>
+              )}
+            </div>
+            {addErrors.name && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{addErrors.name.message}</p>
+            )}
+
+            {showSuggestions && (
+              <div
+                ref={suggestionsRef}
+                className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
+              >
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => selectSuggestion(s)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-blue-50 transition-colors text-left"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{s.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {s.category} · {s.quantity} in stock
+                      </p>
+                    </div>
+                    <StatusBadge status={s.status} size="sm" />
+                  </button>
+                ))}
               </div>
             )}
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Transaction Type
-                </label>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 appearance-none"
-                >
-                  <option value="RECEIVED">Received Stock</option>
-                  <option value="USED">Used / Consumed</option>
-                  <option value="DISPOSED">Disposed / Expired</option>
-                  <option value="ADJUSTED">Manual Adjustment</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Quantity Delta
-                </label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. 50 or -10"
-                  value={quantityDelta}
-                  onChange={(e) => setQuantityDelta(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Notes (optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Reason for adjustment"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700"
-                />
-              </div>
-            </div>
+          </div>
 
-            <div className="flex space-x-3 justify-end">
-              <button
-                type="button"
-                onClick={() => setIsAdjustOpen(false)}
-                className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors text-sm"
-              >
-                Confirm
-              </button>
-            </div>
-          </form>
+          <TextField
+            label="Category *"
+            type="text"
+            fieldSize="sm"
+            placeholder="e.g. Medications, Consumables…"
+            error={addErrors.category?.message}
+            {...registerAdd("category", { required: "Category is required" })}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <TextField
+              label="Quantity *"
+              type="number"
+              fieldSize="sm"
+              min="0"
+              step="1"
+              placeholder="0"
+              error={addErrors.quantity?.message}
+              {...registerAdd("quantity", { validate: wholeNumberRule("Quantity") })}
+            />
+            <TextField
+              label="Reorder Threshold *"
+              type="number"
+              fieldSize="sm"
+              min="0"
+              step="1"
+              placeholder="0"
+              error={addErrors.reorderThreshold?.message}
+              {...registerAdd("reorderThreshold", {
+                validate: wholeNumberRule("Reorder threshold"),
+              })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <TextField
+              label="Unit Cost ($) *"
+              type="number"
+              fieldSize="sm"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              error={addErrors.unitCost?.message}
+              {...registerAdd("unitCost", {
+                validate: (v) => {
+                  if (v === "") return "Unit cost is required";
+                  const n = Number(v);
+                  if (isNaN(n) || n <= 0) return "Must be a positive number";
+                  return true;
+                },
+              })}
+            />
+            <TextField
+              label="Supplier"
+              type="text"
+              fieldSize="sm"
+              placeholder="Optional"
+              {...registerAdd("supplier")}
+            />
+          </div>
+
+          <TextField
+            label="Expiry Date"
+            type="date"
+            fieldSize="sm"
+            {...registerAdd("expiry")}
+          />
         </div>
+
+        <div className="flex space-x-3 justify-end mt-6">
+          <Button type="button" variant="ghost" onClick={closeAddModal}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={addSubmitting} loadingText="Saving...">
+            {isUpdating ? "Update Stock" : "Add New Stock"}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Adjust Stock Modal */}
+      {activeItem && (
+        <Modal
+          open={isAdjustOpen}
+          onClose={() => setIsAdjustOpen(false)}
+          onSubmit={onAdjustSubmit}
+          maxWidth="sm"
+        >
+          <h2 className="text-xl font-bold text-slate-900 mb-1">Adjust Stock</h2>
+          <p className="text-sm text-slate-500 mb-6">
+            Updating levels for <span className="font-bold">{activeItem.name}</span>.
+          </p>
+          {apiErrors && (
+            <div className="bg-red-50 text-red-700 px-4 py-2 rounded mb-4">
+              {apiErrors.message}
+            </div>
+          )}
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Transaction Type
+              </label>
+              <select
+                {...registerAdjust("type")}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 appearance-none"
+              >
+                <option value="RECEIVED">Received Stock</option>
+                <option value="USED">Used / Consumed</option>
+                <option value="DISPOSED">Disposed / Expired</option>
+                <option value="ADJUSTED">Manual Adjustment</option>
+              </select>
+            </div>
+            <TextField
+              label="Quantity Delta"
+              type="number"
+              fieldSize="sm"
+              placeholder="e.g. 50 or -10"
+              {...registerAdjust("quantityDelta", { required: true })}
+            />
+            <TextField
+              label="Notes (optional)"
+              type="text"
+              fieldSize="sm"
+              placeholder="Reason for adjustment"
+              {...registerAdjust("notes")}
+            />
+          </div>
+
+          <div className="flex space-x-3 justify-end">
+            <Button type="button" variant="ghost" onClick={() => setIsAdjustOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Confirm</Button>
+          </div>
+        </Modal>
       )}
     </div>
   );

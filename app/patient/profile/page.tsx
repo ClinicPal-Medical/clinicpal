@@ -1,46 +1,57 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { User, Phone, Mail, Save, AlertCircle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Button from '@/components/Button';
 import TextField from '@/components/TextField';
 
+type FormValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+};
+
 export default function PatientProfilePage() {
-  const [profile, setProfile] = useState({ firstName: '', lastName: '', email: '', phone: '' });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<FormValues>({
+    defaultValues: { firstName: '', lastName: '', email: '', phone: '' },
+  });
 
   useEffect(() => {
     fetch('/api/patient/profile')
-      .then(r => r.json())
-      .then(data => {
-        setProfile({
+      .then((r) => r.json())
+      .then((data) => {
+        reset({
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || '',
-          phone: data.phone || ''
+          phone: data.phone || '',
         });
         setLoading(false);
       });
-  }, []);
+  }, [reset]);
 
-  const handleSave = async () => {
-    setSaving(true);
+  const onSubmit = async (values: FormValues) => {
     setMessage({ text: '', type: '' });
     try {
       const res = await fetch('/api/patient/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
+        body: JSON.stringify(values),
       });
       if (!res.ok) throw new Error('Failed to update');
       setMessage({ text: 'Profile updated successfully.', type: 'success' });
-    } catch (err) {
+    } catch {
       setMessage({ text: 'Error updating profile.', type: 'error' });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -53,8 +64,7 @@ export default function PatientProfilePage() {
         subtitle="Manage your personal information and contact details."
       />
 
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-        
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
         {message.text && (
           <div className={`mb-6 p-4 rounded-xl flex items-center font-medium ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
             <AlertCircle size={20} className="mr-2" /> {message.text}
@@ -67,15 +77,13 @@ export default function PatientProfilePage() {
               label="First Name"
               type="text"
               icon={User}
-              value={profile.firstName}
-              onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+              {...register('firstName')}
             />
             <TextField
               label="Last Name"
               type="text"
               icon={User}
-              value={profile.lastName}
-              onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+              {...register('lastName')}
             />
           </div>
 
@@ -84,22 +92,21 @@ export default function PatientProfilePage() {
             type="email"
             icon={Mail}
             disabled
-            value={profile.email}
             hint="Email address cannot be changed. Contact support if needed."
+            {...register('email')}
           />
 
           <TextField
             label="Phone Number"
             type="tel"
             icon={Phone}
-            value={profile.phone}
-            onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+            {...register('phone')}
           />
 
           <div className="pt-6 border-t border-slate-100 mt-2">
             <Button
-              onClick={handleSave}
-              loading={saving}
+              type="submit"
+              loading={isSubmitting}
               loadingText="Saving..."
               icon={Save}
             >
@@ -107,7 +114,7 @@ export default function PatientProfilePage() {
             </Button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
