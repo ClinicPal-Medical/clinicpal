@@ -4,13 +4,8 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { Calendar, ArrowRight, User, History, RotateCcw } from 'lucide-react';
 import NotificationsPanel from '@/components/NotificationsPanel';
-
-const STATUS_STYLES: Record<string, string> = {
-  CONFIRMED: 'bg-green-100 text-green-700',
-  PENDING: 'bg-amber-100 text-amber-700',
-  CANCELLED: 'bg-red-100 text-red-700',
-  COMPLETED: 'bg-slate-100 text-slate-600',
-};
+import PageHeader from '@/components/PageHeader';
+import StatusBadge from '@/components/StatusBadge';
 
 export default async function PatientDashboard() {
   const session = await getServerSession(authOptions);
@@ -39,12 +34,10 @@ export default async function PatientDashboard() {
   return (
     <div className="flex gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex-1 min-w-0 space-y-8">
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Welcome back, {session?.user?.name?.split(' ')[0]}!
-        </h1>
-        <p className="text-slate-500 mt-2 font-medium">Here&apos;s an overview of your health schedule.</p>
-      </div>
+      <PageHeader
+        title={`Welcome back, ${session?.user?.name?.split(' ')[0] ?? ''}!`}
+        subtitle="Here's an overview of your health schedule."
+      />
 
       <div className="grid grid-cols-1 gap-6 max-w-2xl">
         {/* Next Visit */}
@@ -113,7 +106,6 @@ export default async function PatientDashboard() {
             <div className="divide-y divide-slate-100">
               {recentAppts.map((appt) => {
                 const date = new Date(appt.scheduledAt);
-                const statusStyle = STATUS_STYLES[appt.status] ?? 'bg-slate-100 text-slate-600';
                 return (
                   <div key={appt.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
                     <div className="flex items-center space-x-4 min-w-0">
@@ -134,9 +126,7 @@ export default async function PatientDashboard() {
                           <span className="text-xs text-slate-500">
                             {appt.staff.specialisation}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${statusStyle}`}>
-                            {appt.status}
-                          </span>
+                          <StatusBadge status={appt.status} size="sm" />
                         </div>
                       </div>
                     </div>

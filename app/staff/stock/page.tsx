@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { ca, el, tr } from "date-fns/locale";
 import { set } from "date-fns";
+import PageHeader from "@/components/PageHeader";
+import StatCard from "@/components/StatCard";
+import StatusBadge from "@/components/StatusBadge";
 
 type StockItem = {
   id: string;
@@ -308,70 +311,36 @@ export default function StockInventory() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-            Inventory & Stock
-          </h1>
-          <p className="text-slate-500 mt-1 font-medium">
-            Manage supplies, monitor levels, and adjust counts.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {canManageStock && (
+      <PageHeader
+        title="Inventory & Stock"
+        subtitle="Manage supplies, monitor levels, and adjust counts."
+        actions={
+          <>
+            {canManageStock && (
+              <button
+                onClick={() => {
+                  resetAddForm();
+                  setIsAddOpen(true);
+                }}
+                className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-md text-sm"
+              >
+                <Plus size={18} className="mr-2" /> Add Stock
+              </button>
+            )}
             <button
-              onClick={() => {
-                resetAddForm();
-                setIsAddOpen(true);
-              }}
-              className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-md text-sm"
+              onClick={handleExportCSV}
+              className="inline-flex items-center px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors shadow-md text-sm"
             >
-              <Plus size={18} className="mr-2" /> Add Stock
+              <Download size={18} className="mr-2" /> Export CSV
             </button>
-          )}
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors shadow-md text-sm"
-          >
-            <Download size={18} className="mr-2" /> Export CSV
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-            <Package size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">
-              Total Unique Items
-            </p>
-            <p className="text-2xl font-black text-slate-900">{totalItems}</p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Low & Critical</p>
-            <p className="text-2xl font-black text-slate-900">
-              {lowCriticalCount}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
-            <Clock size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Expiring Soon</p>
-            <p className="text-2xl font-black text-slate-900">
-              {expiringCount}
-            </p>
-          </div>
-        </div>
+        <StatCard icon={Package} tone="blue" label="Total Unique Items" value={totalItems} />
+        <StatCard icon={AlertTriangle} tone="red" label="Low & Critical" value={lowCriticalCount} />
+        <StatCard icon={Clock} tone="amber" label="Expiring Soon" value={expiringCount} />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -420,19 +389,11 @@ export default function StockInventory() {
                       ${parseFloat(i.unitCost).toFixed(2)}
                     </td>
                     <td className="p-4">
-                      <span
-                        className={`px-2 py-0.5 rounded flex items-center w-max align-middle text-[10px] font-black uppercase tracking-wider ${
-                          i.status === "OK"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : i.status === "LOW"
-                              ? "bg-amber-100 text-amber-700"
-                              : i.status === "CRITICAL"
-                                ? "bg-red-100 text-red-700 animate-pulse"
-                                : "bg-orange-100 text-orange-700"
-                        }`}
-                      >
-                        {i.status}
-                      </span>
+                      <StatusBadge
+                        status={i.status}
+                        size="sm"
+                        className={i.status === "CRITICAL" ? "animate-pulse" : ""}
+                      />
                     </td>
                     <td className="p-4 text-right space-x-2">
                       <button
@@ -552,19 +513,7 @@ export default function StockInventory() {
                             {s.category} · {s.quantity} in stock
                           </p>
                         </div>
-                        <span
-                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                            s.status === "OK"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : s.status === "LOW"
-                                ? "bg-amber-100 text-amber-700"
-                                : s.status === "CRITICAL"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-orange-100 text-orange-700"
-                          }`}
-                        >
-                          {s.status}
-                        </span>
+                        <StatusBadge status={s.status} size="sm" />
                       </button>
                     ))}
                   </div>

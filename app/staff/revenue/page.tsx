@@ -17,6 +17,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import PageHeader from "@/components/PageHeader";
+import StatCard from "@/components/StatCard";
+import StatusBadge from "@/components/StatusBadge";
 
 const PDFExporter = dynamic(() => import("./PDFExporter"), { ssr: false });
 
@@ -62,63 +65,17 @@ export default function RevenueDashboard() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Revenue & Billing
-          </h1>
-          <p className="text-slate-500 mt-1 font-medium">
-            Month-to-date financial overview and invoice tracking.
-          </p>
-        </div>
-        <PDFExporter metrics={metrics} />
-      </div>
+      <PageHeader
+        title="Revenue & Billing"
+        subtitle="Month-to-date financial overview and invoice tracking."
+        actions={<PDFExporter metrics={metrics} />}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">MTD Revenue</p>
-            <p className="text-2xl font-black text-slate-900">
-              ${metrics.mtdRevenue.toFixed(2)}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
-            <AlertCircle size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Outstanding Bal</p>
-            <p className="text-2xl font-black text-slate-900">
-              ${metrics.outstandingBalance.toFixed(2)}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Paid Invoices</p>
-            <p className="text-2xl font-black text-slate-900">
-              {metrics.totalPaid}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
-            <FileText size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Average Value</p>
-            <p className="text-2xl font-black text-slate-900">
-              ${metrics.avgValue.toFixed(2)}
-            </p>
-          </div>
-        </div>
+        <StatCard icon={DollarSign} tone="emerald" label="MTD Revenue" value={`$${metrics.mtdRevenue.toFixed(2)}`} />
+        <StatCard icon={AlertCircle} tone="amber" label="Outstanding Bal" value={`$${metrics.outstandingBalance.toFixed(2)}`} />
+        <StatCard icon={CheckCircle2} tone="blue" label="Paid Invoices" value={metrics.totalPaid} />
+        <StatCard icon={FileText} tone="purple" label="Average Value" value={`$${metrics.avgValue.toFixed(2)}`} />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-hidden">
@@ -202,15 +159,7 @@ export default function RevenueDashboard() {
                       ${inv.amount.toFixed(2)}
                     </td>
                     <td className="p-4">
-                      <span
-                        className={`px-2 py-0.5 rounded flex items-center w-max align-middle text-[10px] font-black uppercase tracking-wider ${
-                          inv.status === "PAID"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {inv.status}
-                      </span>
+                      <StatusBadge status={inv.status} size="sm" />
                     </td>
                     <td className="p-4 text-right space-x-2">
                       {inv.status === "UNPAID" && (

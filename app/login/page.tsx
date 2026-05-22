@@ -4,6 +4,8 @@ import { useState } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Button from "@/components/Button";
+import TextField from "@/components/TextField";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -59,41 +61,33 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                placeholder="john.doe@example.com"
-              />
-            </div>
+            <TextField
+              label="Email Address"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="john.doe@example.com"
+            />
 
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                placeholder="••••••••"
-              />
-            </div>
+            <TextField
+              label="Password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-4 rounded-xl transition-all shadow-md shadow-blue-200 active:scale-95 text-lg"
+              size="lg"
+              fullWidth
+              loading={loading}
+              loadingText="Signing in..."
             >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
+              Sign In
+            </Button>
           </form>
 
           <div className="mt-8 text-center bg-slate-50 p-4 rounded-xl">

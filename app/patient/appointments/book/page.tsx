@@ -3,6 +3,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { User, Calendar, Clock, CheckCircle } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import Button from '@/components/Button';
+import TextField from '@/components/TextField';
+import TextareaField from '@/components/TextareaField';
 
 type Staff = { id: string; name: string; specialisation: string };
 
@@ -65,10 +69,10 @@ function BookAppointmentContent() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Book Appointment</h1>
-        <p className="text-slate-500 mt-2 font-medium">Follow the steps below to schedule a visit.</p>
-      </div>
+      <PageHeader
+        title="Book Appointment"
+        subtitle="Follow the steps below to schedule a visit."
+      />
 
       <div className="flex items-center justify-between mb-8 relative">
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 z-0 rounded-full"></div>
@@ -101,13 +105,14 @@ function BookAppointmentContent() {
               ))}
               {doctorsList.length === 0 && <p className="text-slate-500 font-medium py-8 text-center bg-slate-50 rounded-xl border border-slate-100">Loading practitioners...</p>}
             </div>
-            <button
+            <Button
               disabled={!selectedDoctor}
               onClick={() => setStep(2)}
-              className="mt-8 w-full bg-blue-600 disabled:bg-slate-300 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors"
+              fullWidth
+              className="mt-8"
             >
               Continue to Schedule
-            </button>
+            </Button>
           </div>
         )}
 
@@ -115,13 +120,12 @@ function BookAppointmentContent() {
           <div className="space-y-6 animate-in slide-in-from-right-4 fade-in flex-1 flex flex-col">
             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><Calendar className="mr-2 text-blue-600" /> Select Date & Time</h2>
             <div className="flex-1">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
-              <input
+              <TextField
+                label="Date"
                 type="date"
                 min={new Date().toISOString().split('T')[0]}
                 value={selectedDate}
                 onChange={handleDateChange}
-                className="w-full p-3.5 border-2 border-slate-200 bg-slate-50 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700"
               />
 
               {selectedDate && (
@@ -153,14 +157,16 @@ function BookAppointmentContent() {
             </div>
 
             <div className="flex space-x-4 mt-8 pt-4 border-t border-slate-100">
-              <button onClick={() => setStep(1)} className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors">Back</button>
-              <button
+              <Button variant="secondary" onClick={() => setStep(1)} className="w-1/3">
+                Back
+              </Button>
+              <Button
                 disabled={!selectedSlot}
                 onClick={() => setStep(3)}
-                className="w-2/3 bg-blue-600 disabled:bg-slate-300 hover:bg-blue-700 disabled:hover:bg-slate-300 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
+                className="w-2/3"
               >
                 Review & Confirm
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -188,26 +194,29 @@ function BookAppointmentContent() {
               </div>
 
               <div className="mt-8">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Reason for Visit <span className="text-slate-400 font-normal">(Optional)</span></label>
-                <textarea
+                <TextareaField
+                  label="Reason for Visit (Optional)"
                   value={reason}
-                  onChange={e => setReason(e.target.value)}
+                  onChange={(e) => setReason(e.target.value)}
                   rows={3}
                   placeholder="Briefly describe your symptoms or reason for the appointment..."
-                  className="w-full p-4 border-2 border-slate-200 bg-slate-50 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all resize-none font-medium placeholder:text-slate-400 text-slate-800"
-                ></textarea>
+                  className="resize-none"
+                />
               </div>
             </div>
 
             <div className="flex space-x-4 mt-8 pt-4 border-t border-slate-100">
-              <button disabled={loading} onClick={() => setStep(2)} className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors">Back</button>
-              <button
-                disabled={loading}
+              <Button variant="secondary" disabled={loading} onClick={() => setStep(2)} className="w-1/3">
+                Back
+              </Button>
+              <Button
                 onClick={handleSubmit}
-                className="w-2/3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait text-white font-bold py-3.5 rounded-xl transition-colors flex justify-center items-center shadow-md active:scale-95"
+                loading={loading}
+                loadingText="Confirming..."
+                className="w-2/3"
               >
-                {loading ? 'Confirming...' : 'Confirm Appointment'}
-              </button>
+                Confirm Appointment
+              </Button>
             </div>
           </div>
         )}

@@ -6,12 +6,16 @@ import Link from "next/link";
 import {
   Calendar,
   Filter,
-  FileText,
   Check,
   X,
   User,
   Stethoscope,
 } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
+import StatusBadge from "@/components/StatusBadge";
+import Modal from "@/components/Modal";
+import Button from "@/components/Button";
+import TextareaField from "@/components/TextareaField";
 
 export default function AppointmentsQueue() {
   const { data: session } = useSession();
@@ -73,49 +77,44 @@ export default function AppointmentsQueue() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Appointment Queue
-          </h1>
-          <p className="text-slate-500 mt-1 font-medium">
-            Manage and process scheduled visits.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Calendar
-              className="absolute left-3 top-3 text-slate-400"
-              size={18}
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="relative">
-            <Filter
-              className="absolute left-3 top-3 text-slate-400"
-              size={18}
-            />
-            <select
-              value={staffFilter}
-              onChange={(e) => setStaffFilter(e.target.value)}
-              className="pl-10 pr-8 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value="all">All Doctors</option>
-              {staffList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Appointment Queue"
+        subtitle="Manage and process scheduled visits."
+        actions={
+          <>
+            <div className="relative">
+              <Calendar
+                className="absolute left-3 top-3 text-slate-400"
+                size={18}
+              />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="relative">
+              <Filter
+                className="absolute left-3 top-3 text-slate-400"
+                size={18}
+              />
+              <select
+                value={staffFilter}
+                onChange={(e) => setStaffFilter(e.target.value)}
+                className="pl-10 pr-8 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+              >
+                <option value="all">All Doctors</option>
+                {staffList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        }
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -177,21 +176,7 @@ export default function AppointmentsQueue() {
                       <p className="font-medium text-slate-800 mb-1">
                         {appt.reason}
                       </p>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          appt.status === "PENDING"
-                            ? "bg-amber-100 text-amber-700"
-                            : appt.status === "CONFIRMED"
-                              ? "bg-blue-100 text-blue-700"
-                              : appt.status === "COMPLETED"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : appt.status === "CANCELLED"
-                                  ? "bg-slate-100 text-slate-700"
-                                  : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {appt.status}
-                      </span>
+                      <StatusBadge status={appt.status} size="sm" />
                     </td>
                     <td className="p-4 text-right space-x-2">
                       {appt.status === "PENDING" && (
@@ -254,57 +239,54 @@ export default function AppointmentsQueue() {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-300">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">
-              Complete Appointment
-            </h2>
-            <p className="text-sm text-slate-500 mb-6">
-              Enter outcome notes for {activeAppt?.patient?.firstName}{" "}
-              {activeAppt?.patient?.lastName}.
-            </p>
+      <Modal
+        open={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setNotes("");
+          setActiveAppt(null);
+        }}
+        maxWidth="lg"
+      >
+        <h2 className="text-xl font-bold text-slate-900 mb-2">
+          Complete Appointment
+        </h2>
+        <p className="text-sm text-slate-500 mb-6">
+          Enter outcome notes for {activeAppt?.patient?.firstName}{" "}
+          {activeAppt?.patient?.lastName}.
+        </p>
 
-            {role === "DOCTOR" || role === "ADMIN" ? (
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                  <FileText size={16} className="mr-2" /> Clinical Notes
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Record outcome, observations, prescriptions..."
-                  className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all resize-none text-sm text-slate-700"
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-amber-600 bg-amber-50 p-4 rounded-xl mb-6 font-medium">
-                Clinical notes are classified for Doctors and Admins only. Mark
-                as complete directly.
-              </p>
-            )}
-
-            <div className="flex space-x-3 justify-end">
-              <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setNotes("");
-                  setActiveAppt(null);
-                }}
-                className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCompleteSubmit}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-200 transition-colors tracking-wide text-sm"
-              >
-                Save & Complete
-              </button>
-            </div>
+        {role === "DOCTOR" || role === "ADMIN" ? (
+          <div className="mb-6">
+            <TextareaField
+              label="Clinical Notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Record outcome, observations, prescriptions..."
+              className="h-32 resize-none"
+            />
           </div>
+        ) : (
+          <p className="text-sm text-amber-600 bg-amber-50 p-4 rounded-xl mb-6 font-medium">
+            Clinical notes are classified for Doctors and Admins only. Mark
+            as complete directly.
+          </p>
+        )}
+
+        <div className="flex space-x-3 justify-end">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setIsModalOpen(false);
+              setNotes("");
+              setActiveAppt(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleCompleteSubmit}>Save & Complete</Button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -4,6 +4,9 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { Users, AlertTriangle, Clock, DollarSign, Calendar, ArrowRight, Package } from 'lucide-react';
 import * as billingService from '@/modules/billing/service';
+import PageHeader from '@/components/PageHeader';
+import StatCard from '@/components/StatCard';
+import StatusBadge from '@/components/StatusBadge';
 
 export default async function StaffDashboard() {
   const session = await getServerSession(authOptions);
@@ -35,51 +38,16 @@ export default async function StaffDashboard() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Staff Overview</h1>
-        <p className="text-slate-500 mt-2 font-medium">Welcome back, {session?.user?.name}. Here's what's happening today.</p>
-      </div>
+      <PageHeader
+        title="Staff Overview"
+        subtitle={`Welcome back, ${session?.user?.name ?? ''}. Here's what's happening today.`}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-            <Calendar size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Today's Appts</p>
-            <p className="text-2xl font-black text-slate-900">{todayCount}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
-            <Clock size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Pending Actions</p>
-            <p className="text-2xl font-black text-slate-900">{pendingAppts}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">Low Stock</p>
-            <p className="text-2xl font-black text-slate-900">{allLowStock}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">MTD Revenue</p>
-            <p className="text-2xl font-black text-slate-900">${revenueMetrics.mtdRevenue.toFixed(2)}</p>
-          </div>
-        </div>
+        <StatCard icon={Calendar} tone="blue" label="Today's Appts" value={todayCount} />
+        <StatCard icon={Clock} tone="amber" label="Pending Actions" value={pendingAppts} />
+        <StatCard icon={AlertTriangle} tone="red" label="Low Stock" value={allLowStock} />
+        <StatCard icon={DollarSign} tone="emerald" label="MTD Revenue" value={`$${revenueMetrics.mtdRevenue.toFixed(2)}`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -104,15 +72,7 @@ export default async function StaffDashboard() {
                          {appt.scheduledAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {appt.reason}
                        </p>
                      </div>
-                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                       appt.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                       appt.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
-                       appt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                       appt.status === 'CANCELLED' ? 'bg-slate-100 text-slate-700' :
-                       'bg-red-100 text-red-700'
-                     }`}>
-                       {appt.status}
-                     </span>
+                     <StatusBadge status={appt.status} />
                    </div>
                 ))}
               </div>
