@@ -1,48 +1,54 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Button from '@/components/Button';
+import TextField from '@/components/TextField';
+
+const signupSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
+  password: z.string().min(8, 'Must be at least 8 characters'),
+  dob: z.string().min(1, 'Date of birth is required'),
+  phone: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    dob: '',
-    password: ''
-  });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting, errors },
+  } = useForm<FormValues>({ resolver: zodResolver(signupSchema) });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const onSubmit = async (data: FormValues) => {
     setError('');
-
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Failed to register');
-        setLoading(false);
-      } else {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/login');
-        }, 2000);
+        const body = await res.json();
+        setError(body.error || 'Failed to register');
+        return;
       }
-    } catch (err: any) {
+
+      setSuccess(true);
+      setTimeout(() => router.push('/login'), 2000);
+    } catch {
       setError('An unexpected error occurred.');
-      setLoading(false);
     }
   };
 
@@ -65,87 +71,73 @@ export default function SignupPage() {
           <h2 className="text-3xl font-extrabold text-slate-900 text-center tracking-tight mb-2">Join ClinicPal</h2>
           <p className="text-center text-slate-500 font-medium mb-8">Create your patient portal account.</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold text-center">
                 {error}
               </div>
             )}
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">First Name</label>
-                <input
-                  type="text" required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                  placeholder="John"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Last Name</label>
-                <input
-                  type="text" required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                  placeholder="Doe"
-                />
-              </div>
+              <TextField
+                label="First Name"
+                type="text"
+                placeholder="John"
+                error={errors.firstName?.message}
+                {...register('firstName')}
+              />
+              <TextField
+                label="Last Name"
+                type="text"
+                placeholder="Doe"
+                error={errors.lastName?.message}
+                {...register('lastName')}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
-                <input
-                  type="email" required
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                  placeholder="john@example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
-                <input
-                  type="password" required minLength={8}
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                  placeholder="••••••••"
-                />
-              </div>
+              <TextField
+                label="Email Address"
+                type="email"
+                placeholder="john@example.com"
+                error={errors.email?.message}
+                {...register('email')}
+              />
+              <TextField
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                error={errors.password?.message}
+                {...register('password')}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Date of Birth</label>
-                <input
-                  type="date" required max={new Date().toISOString().split('T')[0]}
-                  value={formData.dob}
-                  onChange={(e) => setFormData({...formData, dob: e.target.value})}
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Phone (Optional)</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-800"
-                  placeholder="(555) 123-4567"
-                />
-              </div>
+              <TextField
+                label="Date of Birth"
+                type="date"
+                max={new Date().toISOString().split('T')[0]}
+                error={errors.dob?.message}
+                {...register('dob')}
+              />
+              <TextField
+                label="Phone (Optional)"
+                type="tel"
+                placeholder="(555) 123-4567"
+                {...register('phone')}
+              />
             </div>
-            
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-4 rounded-xl transition-all shadow-md shadow-blue-200 active:scale-95 text-lg mt-4"
+
+            <Button
+              type="submit"
+              size="lg"
+              fullWidth
+              loading={isSubmitting}
+              loadingText="Creating account..."
+              className="mt-4"
             >
-              {loading ? 'Creating account...' : 'Create Account'}
-            </button>
+              Create Account
+            </Button>
           </form>
 
           <div className="mt-8 text-center">

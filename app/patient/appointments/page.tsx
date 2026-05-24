@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Calendar, Clock, User, XCircle, Plus } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import StatusBadge from '@/components/StatusBadge';
 
 type Appointment = {
   id: string;
@@ -45,19 +47,19 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Appointments</h1>
-          <p className="text-slate-500 mt-2 font-medium">View and manage your schedule.</p>
-        </div>
-        <Link 
-          href="/patient/appointments/book"
-          className="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all"
-        >
-          <Plus size={18} className="mr-2" />
-          Book New
-        </Link>
-      </div>
+      <PageHeader
+        title="Appointments"
+        subtitle="View and manage your schedule."
+        actions={
+          <Link
+            href="/patient/appointments/book"
+            className="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all"
+          >
+            <Plus size={18} className="mr-2" />
+            Book New
+          </Link>
+        }
+      />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         {appointments.length === 0 ? (
@@ -92,14 +94,7 @@ export default function AppointmentsPage() {
                   </div>
                   
                   <div className="flex items-center space-x-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                      appt.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                      appt.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                      appt.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
-                      {appt.status}
-                    </span>
+                    <StatusBadge status={appt.status} />
                     
                     {isCancellable && (
                       <button 
