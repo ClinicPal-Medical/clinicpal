@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import StatusBadge from '@/components/StatusBadge';
 import {
   AddDocumentButton,
@@ -83,12 +85,14 @@ const URGENCY_TONES: Record<Urgency, string> = {
   EMERGENCY: 'bg-red-100 text-red-700 border-red-200',
 };
 
-type ReferralFormValues = {
-  referredTo: string;
-  reason: string;
-  urgency: Urgency;
-  notes: string;
-};
+const referralSchema = z.object({
+  referredTo: z.string().min(1, 'Refer to is required'),
+  reason: z.string().min(1, 'Reason is required'),
+  urgency: z.enum(['ROUTINE', 'URGENT', 'EMERGENCY']),
+  notes: z.string(),
+});
+
+type ReferralFormValues = z.infer<typeof referralSchema>;
 
 function AddReferralForm({
   appointmentId,
@@ -105,8 +109,9 @@ function AddReferralForm({
     handleSubmit,
     watch,
     setValue,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<ReferralFormValues>({
+    resolver: zodResolver(referralSchema),
     defaultValues: { referredTo: '', reason: '', urgency: 'ROUTINE', notes: '' },
   });
   const urgency = watch('urgency');
@@ -144,19 +149,25 @@ function AddReferralForm({
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Refer To *</label>
           <input
-            {...register('referredTo', { required: true })}
+            {...register('referredTo')}
             placeholder="e.g. ENT Specialist — City Hospital"
             className={input}
           />
+          {errors.referredTo && (
+            <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.referredTo.message}</p>
+          )}
         </div>
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Reason *</label>
           <textarea
-            {...register('reason', { required: true })}
+            {...register('reason')}
             placeholder="Reason for referral…"
             rows={2}
             className={`${input} resize-y`}
           />
+          {errors.reason && (
+            <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.reason.message}</p>
+          )}
         </div>
         <div>
           <label className="text-[10px] text-slate-500 block mb-1.5">Urgency</label>

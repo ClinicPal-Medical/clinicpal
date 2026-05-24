@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Plus, AlertTriangle, X } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import {
@@ -12,11 +14,24 @@ import {
   DocumentPanel,
   docInputStyle,
 } from '@/components/documents';
-import type {
-  PrescriptionData,
-  PrescriptionForm,
-  PrescriptionItemForm,
-} from '@/modules/encounters/types';
+import type { PrescriptionData, PrescriptionItemForm } from '@/modules/encounters/types';
+
+const prescriptionItemSchema = z.object({
+  medicationName: z.string().min(1, 'Medication name is required'),
+  dosage: z.string(),
+  frequency: z.string(),
+  durationDays: z.number().int().min(1, 'Min 1 day'),
+  quantity: z.number().int().min(1, 'Min 1'),
+  instructions: z.string(),
+});
+
+const prescriptionSchema = z.object({
+  type: z.enum(['EXTERNAL', 'INTERNAL']),
+  notes: z.string(),
+  items: z.array(prescriptionItemSchema).min(1, 'At least one medication is required'),
+});
+
+type PrescriptionForm = z.infer<typeof prescriptionSchema>;
 
 const EMPTY_ITEM: PrescriptionItemForm = {
   medicationName: '',
@@ -159,8 +174,11 @@ function AddPrescriptionForm({
     control,
     watch,
     setValue,
-    formState: { isSubmitting },
-  } = useForm<PrescriptionForm>({ defaultValues: { ...EMPTY_FORM } });
+    formState: { isSubmitting, errors },
+  } = useForm<PrescriptionForm>({
+    resolver: zodResolver(prescriptionSchema),
+    defaultValues: { ...EMPTY_FORM },
+  });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const type = watch('type');
 
@@ -244,6 +262,11 @@ function AddPrescriptionForm({
                   placeholder={type === 'INTERNAL' ? 'Search stock items…' : 'Medication name…'}
                   className={input}
                 />
+                {errors.items?.[i]?.medicationName && (
+                  <p className="text-[11px] text-red-500 mt-1 font-medium">
+                    {errors.items[i]?.medicationName?.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 block mb-1">Dosage</label>

@@ -2,17 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { User, Phone, Mail, Save, AlertCircle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Button from '@/components/Button';
 import TextField from '@/components/TextField';
 
-type FormValues = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-};
+const profileSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string(),
+  phone: z.string().optional().or(z.literal('')),
+});
+
+type FormValues = z.infer<typeof profileSchema>;
 
 export default function PatientProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -21,8 +25,9 @@ export default function PatientProfilePage() {
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<FormValues>({
+    resolver: zodResolver(profileSchema),
     defaultValues: { firstName: '', lastName: '', email: '', phone: '' },
   });
 
@@ -77,12 +82,14 @@ export default function PatientProfilePage() {
               label="First Name"
               type="text"
               icon={User}
+              error={errors.firstName?.message}
               {...register('firstName')}
             />
             <TextField
               label="Last Name"
               type="text"
               icon={User}
+              error={errors.lastName?.message}
               {...register('lastName')}
             />
           </div>

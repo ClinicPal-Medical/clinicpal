@@ -2,19 +2,23 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/Button';
 import TextField from '@/components/TextField';
 
-type FormValues = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  dob: string;
-  password: string;
-};
+const signupSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
+  password: z.string().min(8, 'Must be at least 8 characters'),
+  dob: z.string().min(1, 'Date of birth is required'),
+  phone: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,7 +28,7 @@ export default function SignupPage() {
     register,
     handleSubmit,
     formState: { isSubmitting, errors },
-  } = useForm<FormValues>();
+  } = useForm<FormValues>({ resolver: zodResolver(signupSchema) });
 
   const onSubmit = async (data: FormValues) => {
     setError('');
@@ -80,14 +84,14 @@ export default function SignupPage() {
                 type="text"
                 placeholder="John"
                 error={errors.firstName?.message}
-                {...register('firstName', { required: 'First name is required' })}
+                {...register('firstName')}
               />
               <TextField
                 label="Last Name"
                 type="text"
                 placeholder="Doe"
                 error={errors.lastName?.message}
-                {...register('lastName', { required: 'Last name is required' })}
+                {...register('lastName')}
               />
             </div>
 
@@ -97,20 +101,14 @@ export default function SignupPage() {
                 type="email"
                 placeholder="john@example.com"
                 error={errors.email?.message}
-                {...register('email', {
-                  required: 'Email is required',
-                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Invalid email address' },
-                })}
+                {...register('email')}
               />
               <TextField
                 label="Password"
                 type="password"
                 placeholder="••••••••"
                 error={errors.password?.message}
-                {...register('password', {
-                  required: 'Password is required',
-                  minLength: { value: 8, message: 'Must be at least 8 characters' },
-                })}
+                {...register('password')}
               />
             </div>
 
@@ -120,7 +118,7 @@ export default function SignupPage() {
                 type="date"
                 max={new Date().toISOString().split('T')[0]}
                 error={errors.dob?.message}
-                {...register('dob', { required: 'Date of birth is required' })}
+                {...register('dob')}
               />
               <TextField
                 label="Phone (Optional)"

@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
 import TextField from "@/components/TextField";
 
-type FormValues = { email: string; password: string };
+const loginSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type FormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,8 +23,8 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { isSubmitting },
-  } = useForm<FormValues>();
+    formState: { isSubmitting, errors },
+  } = useForm<FormValues>({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setError("");
@@ -62,14 +69,16 @@ export default function LoginPage() {
               label="Email Address"
               type="email"
               placeholder="john.doe@example.com"
-              {...register("email", { required: "Email is required" })}
+              error={errors.email?.message}
+              {...register("email")}
             />
 
             <TextField
               label="Password"
               type="password"
               placeholder="••••••••"
-              {...register("password", { required: "Password is required" })}
+              error={errors.password?.message}
+              {...register("password")}
             />
 
             <Button

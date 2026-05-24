@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useSession } from "next-auth/react";
 import {
   Package,
@@ -33,21 +35,39 @@ type StockItem = {
   status: string;
 };
 
-type AddFormValues = {
-  name: string;
-  category: string;
-  quantity: string;
-  reorderThreshold: string;
-  unitCost: string;
-  supplier: string;
-  expiry: string;
-};
+const wholeNumberString = (label: string) =>
+  z
+    .string()
+    .min(1, `${label} is required`)
+    .refine(
+      (v) => /^\d+$/.test(v) && Number.isInteger(Number(v)),
+      `${label} must be a whole number (0 or more)`,
+    );
 
-type AdjustFormValues = {
-  quantityDelta: string;
-  type: string;
-  notes: string;
-};
+const addSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  category: z.string().min(1, "Category is required"),
+  quantity: wholeNumberString("Quantity"),
+  reorderThreshold: wholeNumberString("Reorder threshold"),
+  unitCost: z
+    .string()
+    .min(1, "Unit cost is required")
+    .refine((v) => {
+      const n = Number(v);
+      return !isNaN(n) && n > 0;
+    }, "Must be a positive number"),
+  supplier: z.string(),
+  expiry: z.string(),
+});
+
+const adjustSchema = z.object({
+  quantityDelta: z.string().min(1, "Quantity delta is required"),
+  type: z.enum(["RECEIVED", "USED", "DISPOSED", "ADJUSTED"]),
+  notes: z.string(),
+});
+
+type AddFormValues = z.infer<typeof addSchema>;
+type AdjustFormValues = z.infer<typeof adjustSchema>;
 
 const EMPTY_ADD_FORM: AddFormValues = {
   name: "",
@@ -57,14 +77,6 @@ const EMPTY_ADD_FORM: AddFormValues = {
   unitCost: "",
   supplier: "",
   expiry: "",
-};
-
-const wholeNumberRule = (label: string) => (v: string) => {
-  if (v === "") return `${label} is required`;
-  const n = Number(v);
-  if (isNaN(n) || !Number.isInteger(n) || n < 0)
-    return `${label} must be a whole number (0 or more)`;
-  return true;
 };
 
 export default function StockInventory() {
@@ -93,7 +105,10 @@ export default function StockInventory() {
     reset: resetAdd,
     watch: watchAdd,
     formState: { errors: addErrors, isSubmitting: addSubmitting },
-  } = useForm<AddFormValues>({ defaultValues: EMPTY_ADD_FORM });
+  } = useForm<AddFormValues>({
+    resolver: zodResolver(addSchema),
+    defaultValues: EMPTY_ADD_FORM,
+  });
 
   const nameValue = watchAdd("name");
   const isUpdating = !!selectedItemId;
@@ -107,7 +122,9 @@ export default function StockInventory() {
     register: registerAdjust,
     handleSubmit: handleAdjustForm,
     reset: resetAdjust,
+    formState: { errors: adjustErrors },
   } = useForm<AdjustFormValues>({
+    resolver: zodResolver(adjustSchema),
     defaultValues: { quantityDelta: "", type: "RECEIVED", notes: "" },
   });
 
@@ -282,7 +299,7 @@ export default function StockInventory() {
   const expiringCount = items.filter((i) => i.status === "EXPIRING").length;
 
   // Bridge the RHF ref with our local ref for the name input
-  const nameRegister = registerAdd("name", { required: "Name is required" });
+  const nameRegister = registerAdd("name");
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -495,7 +512,7 @@ export default function StockInventory() {
             fieldSize="sm"
             placeholder="e.g. Medications, Consumables…"
             error={addErrors.category?.message}
-            {...registerAdd("category", { required: "Category is required" })}
+            {...registerAdd("category")}
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -507,7 +524,7 @@ export default function StockInventory() {
               step="1"
               placeholder="0"
               error={addErrors.quantity?.message}
-              {...registerAdd("quantity", { validate: wholeNumberRule("Quantity") })}
+              {...registerAdd("quantity")}
             />
             <TextField
               label="Reorder Threshold *"
@@ -517,9 +534,7 @@ export default function StockInventory() {
               step="1"
               placeholder="0"
               error={addErrors.reorderThreshold?.message}
-              {...registerAdd("reorderThreshold", {
-                validate: wholeNumberRule("Reorder threshold"),
-              })}
+              {...registerAdd("reorderThreshold")}
             />
           </div>
 
@@ -532,14 +547,7 @@ export default function StockInventory() {
               step="0.01"
               placeholder="0.00"
               error={addErrors.unitCost?.message}
-              {...registerAdd("unitCost", {
-                validate: (v) => {
-                  if (v === "") return "Unit cost is required";
-                  const n = Number(v);
-                  if (isNaN(n) || n <= 0) return "Must be a positive number";
-                  return true;
-                },
-              })}
+              {...registerAdd("unitCost")}
             />
             <TextField
               label="Supplier"
@@ -605,7 +613,8 @@ export default function StockInventory() {
               type="number"
               fieldSize="sm"
               placeholder="e.g. 50 or -10"
-              {...registerAdjust("quantityDelta", { required: true })}
+              error={adjustErrors.quantityDelta?.message}
+              {...registerAdjust("quantityDelta")}
             />
             <TextField
               label="Notes (optional)"

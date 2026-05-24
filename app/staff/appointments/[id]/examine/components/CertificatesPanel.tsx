@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import StatusBadge from '@/components/StatusBadge';
 import {
   AddDocumentButton,
@@ -80,13 +82,20 @@ function CertCard({
   );
 }
 
-type CertFormValues = {
-  diagnosis: string;
-  fitForWork: boolean;
-  fromDate: string;
-  toDate: string;
-  notes: string;
-};
+const certSchema = z
+  .object({
+    diagnosis: z.string().min(1, 'Diagnosis is required'),
+    fitForWork: z.boolean(),
+    fromDate: z.string().min(1, 'From date is required'),
+    toDate: z.string().min(1, 'To date is required'),
+    notes: z.string(),
+  })
+  .refine((v) => v.fromDate <= v.toDate, {
+    message: 'To date must be on or after From date',
+    path: ['toDate'],
+  });
+
+type CertFormValues = z.infer<typeof certSchema>;
 
 function AddCertForm({
   appointmentId,
@@ -101,8 +110,9 @@ function AddCertForm({
   const {
     register,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<CertFormValues>({
+    resolver: zodResolver(certSchema),
     defaultValues: {
       diagnosis: '',
       fitForWork: false,
@@ -145,10 +155,13 @@ function AddCertForm({
         <div>
           <label className="text-[10px] text-slate-500 block mb-1">Diagnosis *</label>
           <input
-            {...register('diagnosis', { required: true })}
+            {...register('diagnosis')}
             placeholder="e.g. Acute respiratory infection"
             className={input}
           />
+          {errors.diagnosis && (
+            <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.diagnosis.message}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -165,11 +178,17 @@ function AddCertForm({
         <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="text-[10px] text-slate-500 block mb-1">From Date *</label>
-            <input type="date" {...register('fromDate', { required: true })} className={input} />
+            <input type="date" {...register('fromDate')} className={input} />
+            {errors.fromDate && (
+              <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.fromDate.message}</p>
+            )}
           </div>
           <div>
             <label className="text-[10px] text-slate-500 block mb-1">To Date *</label>
-            <input type="date" {...register('toDate', { required: true })} className={input} />
+            <input type="date" {...register('toDate')} className={input} />
+            {errors.toDate && (
+              <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.toDate.message}</p>
+            )}
           </div>
         </div>
 
