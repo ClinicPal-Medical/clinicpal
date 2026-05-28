@@ -1,4 +1,3 @@
-import React from "react";
 import { requireRole } from "@/lib/rbac";
 import { getCertificateForPrint } from "@/modules/encounters/service";
 import { MedicalCertificatePDF } from "@/lib/pdf/MedicalCertificatePDF";
@@ -20,11 +19,9 @@ export async function GET(
   if (certificate.doctorId !== auth.session.user.id)
     return Response.json({ error: "Forbidden" }, { status: 403 });
 
-  const buffer = await renderToBuffer(
-    React.createElement(MedicalCertificatePDF, { certificate })
-  );
+  const buffer = await renderToBuffer(MedicalCertificatePDF({ certificate }));
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="certificate-${id}.pdf"`,

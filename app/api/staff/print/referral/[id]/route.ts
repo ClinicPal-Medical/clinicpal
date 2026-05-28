@@ -1,4 +1,3 @@
-import React from "react";
 import { requireRole } from "@/lib/rbac";
 import { getReferralForPrint } from "@/modules/encounters/service";
 import { ReferralPDF } from "@/lib/pdf/ReferralPDF";
@@ -19,11 +18,9 @@ export async function GET(
   if (referral.doctorId !== auth.session.user.id)
     return Response.json({ error: "Forbidden" }, { status: 403 });
 
-  const buffer = await renderToBuffer(
-    React.createElement(ReferralPDF, { referral })
-  );
+  const buffer = await renderToBuffer(ReferralPDF({ referral }));
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="referral-${id}.pdf"`,

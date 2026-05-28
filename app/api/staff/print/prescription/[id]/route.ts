@@ -1,4 +1,3 @@
-import React from "react";
 import { requireRole } from "@/lib/rbac";
 import { getPrescriptionForPrint } from "@/modules/encounters/service";
 import { PrescriptionPDF } from "@/lib/pdf/PrescriptionPDF";
@@ -20,11 +19,9 @@ export async function GET(
   if (prescription.doctorId !== auth.session.user.id)
     return Response.json({ error: "Forbidden" }, { status: 403 });
 
-  const buffer = await renderToBuffer(
-    React.createElement(PrescriptionPDF, { prescription })
-  );
+  const buffer = await renderToBuffer(PrescriptionPDF({ prescription }));
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="prescription-${id}.pdf"`,

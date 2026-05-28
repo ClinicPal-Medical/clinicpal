@@ -84,12 +84,12 @@ interface ReferralPDFProps {
   };
 }
 
-const urgencyBadgeStyle: Record<string, object> = {
+const urgencyBadgeStyle = {
   ROUTINE: styles.urgencyRoutine,
   URGENT: styles.urgencyUrgent,
   EMERGENCY: styles.urgencyEmergency,
 };
-const urgencyTextStyle: Record<string, object> = {
+const urgencyTextStyle = {
   ROUTINE: styles.urgencyTextRoutine,
   URGENT: styles.urgencyTextUrgent,
   EMERGENCY: styles.urgencyTextEmergency,
