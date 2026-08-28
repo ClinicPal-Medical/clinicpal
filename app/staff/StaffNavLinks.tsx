@@ -1,13 +1,14 @@
-import Link from 'next/link';
+import Link from "next/link";
 import {
   LayoutDashboard,
   Calendar,
   Users,
   Package,
   DollarSign,
+  UserCog,
   LogOut,
   type LucideIcon,
-} from 'lucide-react';
+} from "lucide-react";
 
 type NavItem = {
   href: string;
@@ -17,15 +18,21 @@ type NavItem = {
 };
 
 const ITEMS: NavItem[] = [
-  { href: '/staff/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/staff/appointments', label: 'Appointments', icon: Calendar },
-  { href: '/staff/patients', label: 'Patients', icon: Users },
-  { href: '/staff/stock', label: 'Stock Inventory', icon: Package },
-  { href: '/staff/revenue', label: 'Revenue', icon: DollarSign, adminOnly: true },
+  { href: "/staff/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/staff/appointments", label: "Appointments", icon: Calendar },
+  { href: "/staff/patients", label: "Patients", icon: Users },
+  { href: "/staff/team", label: "Staff", icon: UserCog, adminOnly: true },
+  { href: "/staff/stock", label: "Stock Inventory", icon: Package },
+  {
+    href: "/staff/revenue",
+    label: "Revenue",
+    icon: DollarSign,
+    adminOnly: true,
+  },
 ];
 
 const LINK_CLASSES =
-  'flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-all font-medium';
+  "flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-all font-medium";
 
 export default function StaffNavLinks({ isAdmin }: { isAdmin: boolean }) {
   return (

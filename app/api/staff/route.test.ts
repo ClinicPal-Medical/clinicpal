@@ -12,14 +12,14 @@ describe('GET /api/staff', () => {
     const staff = [{ id: 's-1', name: 'Dr X', role: 'DOCTOR' }];
     vi.mocked(prisma.staff.findMany).mockResolvedValue(staff as any);
 
-    const body = await expectJson(await GET(), 200);
+    const body = await expectJson(await GET(new Request('http://localhost/api/staff')), 200);
     expect(prisma.staff.findMany).toHaveBeenCalledWith({ where: { active: true } });
     expect(body).toEqual(staff);
   });
 
   it('returns 500 on db error', async () => {
     vi.mocked(prisma.staff.findMany).mockRejectedValue(new Error('boom'));
-    const body = await expectJson(await GET(), 500);
+    const body = await expectJson(await GET(new Request('http://localhost/api/staff')), 500);
     expect(body).toEqual({ error: 'Failed to fetch staff' });
   });
 });
