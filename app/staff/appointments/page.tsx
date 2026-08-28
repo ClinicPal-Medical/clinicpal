@@ -16,7 +16,7 @@ import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import Button from "@/components/Button";
-import TextareaField from "@/components/TextareaField";
+import { TextareaInput } from "@/components/form";
 
 export default function AppointmentsQueue() {
   const { data: session } = useSession();
@@ -32,7 +32,7 @@ export default function AppointmentsQueue() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeAppt, setActiveAppt] = useState<any>(null);
   const {
-    register: registerComplete,
+    control: controlComplete,
     handleSubmit: handleCompleteForm,
     reset: resetCompleteForm,
   } = useForm<{ notes: string }>({ defaultValues: { notes: "" } });
@@ -264,11 +264,12 @@ export default function AppointmentsQueue() {
 
         {role === "DOCTOR" || role === "ADMIN" ? (
           <div className="mb-6">
-            <TextareaField
+            <TextareaInput
+              control={controlComplete}
+              name="notes"
               label="Clinical Notes"
               placeholder="Record outcome, observations, prescriptions..."
               className="h-32 resize-none"
-              {...registerComplete("notes")}
             />
           </div>
         ) : (

@@ -11,8 +11,13 @@ import {
   DocumentCard,
   DocumentDraftForm,
   DocumentPanel,
-  docInputStyle,
 } from '@/components/documents';
+import {
+  TextInput,
+  TextareaInput,
+  DateInput,
+  CheckboxInput,
+} from '@/components/form';
 import type { CertificateData } from '@/modules/encounters/types';
 
 function fmtDate(d: string) {
@@ -108,9 +113,9 @@ function AddCertForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const {
-    register,
+    control,
     handleSubmit,
-    formState: { isSubmitting, errors },
+    formState: { isSubmitting },
   } = useForm<CertFormValues>({
     resolver: zodResolver(certSchema),
     defaultValues: {
@@ -141,8 +146,6 @@ function AddCertForm({
     }
   });
 
-  const input = docInputStyle('emerald');
-
   return (
     <DocumentDraftForm
       tone="emerald"
@@ -152,55 +155,54 @@ function AddCertForm({
       error={error}
     >
       <div className="flex flex-col gap-2.5">
-        <div>
-          <label className="text-[10px] text-slate-500 block mb-1">Diagnosis *</label>
-          <input
-            {...register('diagnosis')}
-            placeholder="e.g. Acute respiratory infection"
-            className={input}
-          />
-          {errors.diagnosis && (
-            <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.diagnosis.message}</p>
-          )}
-        </div>
+        <TextInput
+          control={control}
+          name="diagnosis"
+          label="Diagnosis *"
+          fieldSize="doc"
+          tone="emerald"
+          placeholder="e.g. Acute respiratory infection"
+        />
 
-        <div className="flex items-center gap-2.5">
-          <label className="text-xs text-slate-700 flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              {...register('fitForWork')}
-              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            Fit for work
-          </label>
-        </div>
+        <CheckboxInput
+          control={control}
+          name="fitForWork"
+          label="Fit for work"
+          fieldSize="doc"
+          tone="emerald"
+        />
 
         <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="text-[10px] text-slate-500 block mb-1">From Date *</label>
-            <input type="date" {...register('fromDate')} className={input} />
-            {errors.fromDate && (
-              <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.fromDate.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-500 block mb-1">To Date *</label>
-            <input type="date" {...register('toDate')} className={input} />
-            {errors.toDate && (
-              <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.toDate.message}</p>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-[10px] text-slate-500 block mb-1">Notes (optional)</label>
-          <textarea
-            {...register('notes')}
-            placeholder="Additional notes…"
-            rows={2}
-            className={`${input} resize-y`}
+          <DateInput
+            control={control}
+            name="fromDate"
+            variant="date"
+            label="From Date *"
+            fieldSize="doc"
+            tone="emerald"
+            leftIcon={null}
+          />
+          <DateInput
+            control={control}
+            name="toDate"
+            variant="date"
+            label="To Date *"
+            fieldSize="doc"
+            tone="emerald"
+            leftIcon={null}
           />
         </div>
+
+        <TextareaInput
+          control={control}
+          name="notes"
+          label="Notes (optional)"
+          fieldSize="doc"
+          tone="emerald"
+          rows={2}
+          placeholder="Additional notes…"
+          className="resize-y"
+        />
       </div>
     </DocumentDraftForm>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, type DefaultValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useSession } from "next-auth/react";
@@ -14,14 +14,18 @@ import {
   Trash2,
   Edit3,
   X,
-  Loader2,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import Button from "@/components/Button";
-import TextField from "@/components/TextField";
+import {
+  TextInput,
+  DateInput,
+  SelectInput,
+  AutocompleteInput,
+} from "@/components/form";
 
 type StockItem = {
   id: string;
@@ -35,33 +39,28 @@ type StockItem = {
   status: string;
 };
 
-const wholeNumberString = (label: string) =>
-  z
-    .string()
-    .min(1, `${label} is required`)
-    .refine(
-      (v) => /^\d+$/.test(v) && Number.isInteger(Number(v)),
-      `${label} must be a whole number (0 or more)`,
-    );
-
 const addSchema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.string().min(1, "Category is required"),
-  quantity: wholeNumberString("Quantity"),
-  reorderThreshold: wholeNumberString("Reorder threshold"),
+  quantity: z
+    .number({ error: "Quantity is required" })
+    .int("Quantity must be a whole number")
+    .min(0, "Quantity must be 0 or more"),
+  reorderThreshold: z
+    .number({ error: "Reorder threshold is required" })
+    .int("Reorder threshold must be a whole number")
+    .min(0, "Reorder threshold must be 0 or more"),
   unitCost: z
-    .string()
-    .min(1, "Unit cost is required")
-    .refine((v) => {
-      const n = Number(v);
-      return !isNaN(n) && n > 0;
-    }, "Must be a positive number"),
+    .number({ error: "Unit cost is required" })
+    .positive("Must be a positive number"),
   supplier: z.string(),
   expiry: z.string(),
 });
 
 const adjustSchema = z.object({
-  quantityDelta: z.string().min(1, "Quantity delta is required"),
+  quantityDelta: z
+    .number({ error: "Quantity delta is required" })
+    .int("Quantity delta must be a whole number"),
   type: z.enum(["RECEIVED", "USED", "DISPOSED", "ADJUSTED"]),
   notes: z.string(),
 });
@@ -69,12 +68,9 @@ const adjustSchema = z.object({
 type AddFormValues = z.infer<typeof addSchema>;
 type AdjustFormValues = z.infer<typeof adjustSchema>;
 
-const EMPTY_ADD_FORM: AddFormValues = {
+const EMPTY_ADD_FORM: DefaultValues<AddFormValues> = {
   name: "",
   category: "",
-  quantity: "",
-  reorderThreshold: "",
-  unitCost: "",
   supplier: "",
   expiry: "",
 };
@@ -93,24 +89,17 @@ export default function StockInventory() {
   // ─── Add / Update modal ──────────────────────────────────────────────────────
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<StockItem[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const {
-    register: registerAdd,
+    control: controlAdd,
     handleSubmit: handleAddForm,
     reset: resetAdd,
-    watch: watchAdd,
-    formState: { errors: addErrors, isSubmitting: addSubmitting },
+    formState: { isSubmitting: addSubmitting },
   } = useForm<AddFormValues>({
     resolver: zodResolver(addSchema),
     defaultValues: EMPTY_ADD_FORM,
   });
 
-  const nameValue = watchAdd("name");
   const isUpdating = !!selectedItemId;
 
   // ─── Adjust modal ────────────────────────────────────────────────────────────
@@ -119,59 +108,17 @@ export default function StockInventory() {
   const [apiErrors, setApiErrors] = useState<Error | null>(null);
 
   const {
-    register: registerAdjust,
+    control: controlAdjust,
     handleSubmit: handleAdjustForm,
     reset: resetAdjust,
-    formState: { errors: adjustErrors },
   } = useForm<AdjustFormValues>({
     resolver: zodResolver(adjustSchema),
-    defaultValues: { quantityDelta: "", type: "RECEIVED", notes: "" },
+    defaultValues: { type: "RECEIVED", notes: "" },
   });
 
   // ─── Effects ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchItems();
-  }, []);
-
-  // Live name search — triggers after 3 chars when no item is already selected
-  useEffect(() => {
-    if (selectedItemId || nameValue.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setSearchLoading(true);
-      try {
-        const res = await fetch(
-          `/api/staff/stock/search?q=${encodeURIComponent(nameValue)}`,
-        );
-        if (res.ok) {
-          const data: StockItem[] = await res.json();
-          setSuggestions(data);
-          setShowSuggestions(data.length > 0);
-        }
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [nameValue, selectedItemId]);
-
-  // Close suggestions on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(e.target as Node) &&
-        nameInputRef.current &&
-        !nameInputRef.current.contains(e.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const fetchItems = async () => {
@@ -185,9 +132,15 @@ export default function StockInventory() {
   const closeAddModal = () => {
     setIsAddOpen(false);
     setSelectedItemId(null);
-    setSuggestions([]);
-    setShowSuggestions(false);
     resetAdd(EMPTY_ADD_FORM);
+  };
+
+  const searchStock = async (query: string): Promise<StockItem[]> => {
+    const res = await fetch(
+      `/api/staff/stock/search?q=${encodeURIComponent(query)}`,
+    );
+    if (!res.ok) return [];
+    return res.json();
   };
 
   const selectSuggestion = (item: StockItem) => {
@@ -195,25 +148,23 @@ export default function StockInventory() {
     resetAdd({
       name: item.name,
       category: item.category,
-      quantity: String(item.quantity),
-      reorderThreshold: String(item.reorderThreshold),
-      unitCost: String(parseFloat(item.unitCost)),
+      quantity: item.quantity,
+      reorderThreshold: item.reorderThreshold,
+      unitCost: parseFloat(item.unitCost),
       supplier: item.supplier ?? "",
       expiry: item.expiry
         ? new Date(item.expiry).toISOString().split("T")[0]
         : "",
     });
-    setSuggestions([]);
-    setShowSuggestions(false);
   };
 
   const onAddSubmit = handleAddForm(async (values) => {
     const payload = {
       name: values.name.trim(),
       category: values.category.trim(),
-      quantity: parseInt(values.quantity),
-      reorderThreshold: parseInt(values.reorderThreshold),
-      unitCost: parseFloat(values.unitCost),
+      quantity: values.quantity,
+      reorderThreshold: values.reorderThreshold,
+      unitCost: values.unitCost,
       supplier: values.supplier.trim() || null,
       expiry: values.expiry ? new Date(values.expiry).toISOString() : null,
     };
@@ -244,7 +195,7 @@ export default function StockInventory() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            quantityDelta: parseInt(values.quantityDelta),
+            quantityDelta: values.quantityDelta,
             type: values.type,
             notes: values.notes,
           }),
@@ -297,9 +248,6 @@ export default function StockInventory() {
     (i) => i.status === "LOW" || i.status === "CRITICAL",
   ).length;
   const expiringCount = items.filter((i) => i.status === "EXPIRING").length;
-
-  // Bridge the RHF ref with our local ref for the name input
-  const nameRegister = registerAdd("name");
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -393,7 +341,6 @@ export default function StockInventory() {
                         onClick={() => {
                           setActiveItem(i);
                           resetAdjust({
-                            quantityDelta: "",
                             type: "RECEIVED",
                             notes: "",
                           });
@@ -444,125 +391,92 @@ export default function StockInventory() {
         </div>
 
         <div className="space-y-4">
-          {/* Name with live search */}
-          <div className="relative">
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">
-              Item Name <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                {...nameRegister}
-                ref={(el) => {
-                  nameRegister.ref(el);
-                  nameInputRef.current = el;
-                }}
-                onChange={(e) => {
-                  nameRegister.onChange(e);
-                  if (selectedItemId) setSelectedItemId(null);
-                }}
-                type="text"
-                placeholder="Type to search or enter a new name…"
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 pr-9 ${addErrors.name ? "border-red-300" : "border-slate-200"}`}
-              />
-              {searchLoading && (
-                <Loader2
-                  size={16}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 animate-spin"
-                />
-              )}
-              {isUpdating && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+          <AutocompleteInput
+            control={controlAdd}
+            name="name"
+            label="Item Name *"
+            fieldSize="sm"
+            placeholder="Type to search or enter a new name…"
+            onSearch={searchStock}
+            onSelect={selectSuggestion}
+            onUserChange={() => {
+              if (selectedItemId) setSelectedItemId(null);
+            }}
+            getOptionKey={(s) => s.id}
+            getOptionLabel={(s) => s.name}
+            renderOption={(s) => (
+              <>
+                <div>
+                  <p className="font-bold text-slate-800 text-sm">{s.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {s.category} · {s.quantity} in stock
+                  </p>
+                </div>
+                <StatusBadge status={s.status} size="sm" />
+              </>
+            )}
+            rightAdornment={
+              isUpdating ? (
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
                   Existing
                 </span>
-              )}
-            </div>
-            {addErrors.name && (
-              <p className="text-xs text-red-500 mt-1 font-medium">{addErrors.name.message}</p>
-            )}
+              ) : undefined
+            }
+          />
 
-            {showSuggestions && (
-              <div
-                ref={suggestionsRef}
-                className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
-              >
-                {suggestions.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => selectSuggestion(s)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-blue-50 transition-colors text-left"
-                  >
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">{s.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {s.category} · {s.quantity} in stock
-                      </p>
-                    </div>
-                    <StatusBadge status={s.status} size="sm" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <TextField
+          <TextInput
+            control={controlAdd}
+            name="category"
             label="Category *"
-            type="text"
             fieldSize="sm"
             placeholder="e.g. Medications, Consumables…"
-            error={addErrors.category?.message}
-            {...registerAdd("category")}
           />
 
           <div className="grid grid-cols-2 gap-4">
-            <TextField
+            <TextInput
+              control={controlAdd}
+              name="quantity"
+              type="float"
+              decimals={0}
+              fieldSize="sm"
               label="Quantity *"
-              type="number"
-              fieldSize="sm"
-              min="0"
-              step="1"
               placeholder="0"
-              error={addErrors.quantity?.message}
-              {...registerAdd("quantity")}
             />
-            <TextField
-              label="Reorder Threshold *"
-              type="number"
+            <TextInput
+              control={controlAdd}
+              name="reorderThreshold"
+              type="float"
+              decimals={0}
               fieldSize="sm"
-              min="0"
-              step="1"
+              label="Reorder Threshold *"
               placeholder="0"
-              error={addErrors.reorderThreshold?.message}
-              {...registerAdd("reorderThreshold")}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <TextField
-              label="Unit Cost ($) *"
-              type="number"
+            <TextInput
+              control={controlAdd}
+              name="unitCost"
+              type="currency"
               fieldSize="sm"
-              min="0.01"
-              step="0.01"
+              label="Unit Cost *"
               placeholder="0.00"
-              error={addErrors.unitCost?.message}
-              {...registerAdd("unitCost")}
             />
-            <TextField
+            <TextInput
+              control={controlAdd}
+              name="supplier"
               label="Supplier"
-              type="text"
               fieldSize="sm"
               placeholder="Optional"
-              {...registerAdd("supplier")}
             />
           </div>
 
-          <TextField
+          <DateInput
+            control={controlAdd}
+            name="expiry"
+            variant="date"
             label="Expiry Date"
-            type="date"
             fieldSize="sm"
-            {...registerAdd("expiry")}
           />
         </div>
 
@@ -594,34 +508,33 @@ export default function StockInventory() {
             </div>
           )}
           <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Transaction Type
-              </label>
-              <select
-                {...registerAdjust("type")}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium text-slate-700 appearance-none"
-              >
-                <option value="RECEIVED">Received Stock</option>
-                <option value="USED">Used / Consumed</option>
-                <option value="DISPOSED">Disposed / Expired</option>
-                <option value="ADJUSTED">Manual Adjustment</option>
-              </select>
-            </div>
-            <TextField
-              label="Quantity Delta"
-              type="number"
+            <SelectInput
+              control={controlAdjust}
+              name="type"
+              label="Transaction Type"
               fieldSize="sm"
-              placeholder="e.g. 50 or -10"
-              error={adjustErrors.quantityDelta?.message}
-              {...registerAdjust("quantityDelta")}
+              options={[
+                { label: "Received Stock", value: "RECEIVED" },
+                { label: "Used / Consumed", value: "USED" },
+                { label: "Disposed / Expired", value: "DISPOSED" },
+                { label: "Manual Adjustment", value: "ADJUSTED" },
+              ]}
             />
-            <TextField
+            <TextInput
+              control={controlAdjust}
+              name="quantityDelta"
+              type="float"
+              decimals={0}
+              fieldSize="sm"
+              label="Quantity Delta"
+              placeholder="e.g. 50 or -10"
+            />
+            <TextInput
+              control={controlAdjust}
+              name="notes"
               label="Notes (optional)"
-              type="text"
               fieldSize="sm"
               placeholder="Reason for adjustment"
-              {...registerAdjust("notes")}
             />
           </div>
 

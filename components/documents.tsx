@@ -37,21 +37,6 @@ const ISSUE_BUTTON_CLASSES: Record<DocTone, string> = {
   amber: 'bg-amber-500 hover:bg-amber-600',
 };
 
-const FOCUS_RING_CLASSES: Record<DocTone, string> = {
-  blue: 'focus:border-blue-500 focus:ring-blue-500/20',
-  emerald: 'focus:border-emerald-500 focus:ring-emerald-500/20',
-  amber: 'focus:border-amber-500 focus:ring-amber-500/20',
-};
-
-// Field input style shared by all draft forms (small, tight, tone-coloured focus ring).
-export function docInputStyle(tone: DocTone, error?: boolean): string {
-  const border = error ? 'border-red-400' : 'border-slate-200';
-  const focus = error
-    ? 'focus:border-red-500 focus:ring-red-500/20'
-    : FOCUS_RING_CLASSES[tone];
-  return `w-full px-2.5 py-1.5 bg-white border ${border} rounded-lg text-slate-800 text-xs outline-none transition-all focus:ring-2 ${focus}`;
-}
-
 // ─── DocumentPanel ────────────────────────────────────────────────────────────
 // Collapsible outer wrapper used by Prescriptions / Certificates / Referrals.
 

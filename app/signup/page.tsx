@@ -6,8 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { User, Mail, Lock, Phone } from 'lucide-react';
 import Button from '@/components/Button';
-import TextField from '@/components/TextField';
+import { TextInput, DateInput } from '@/components/form';
 
 const signupSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -25,10 +26,20 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const {
-    register,
+    control,
     handleSubmit,
-    formState: { isSubmitting, errors },
-  } = useForm<FormValues>({ resolver: zodResolver(signupSchema) });
+    formState: { isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      dob: '',
+      phone: '',
+    },
+  });
 
   const onSubmit = async (data: FormValues) => {
     setError('');
@@ -79,52 +90,61 @@ export default function SignupPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
+              <TextInput
+                control={control}
+                name="firstName"
                 label="First Name"
-                type="text"
                 placeholder="John"
-                error={errors.firstName?.message}
-                {...register('firstName')}
+                leftIcon={User}
+                autoComplete="given-name"
               />
-              <TextField
+              <TextInput
+                control={control}
+                name="lastName"
                 label="Last Name"
-                type="text"
                 placeholder="Doe"
-                error={errors.lastName?.message}
-                {...register('lastName')}
+                leftIcon={User}
+                autoComplete="family-name"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
-                label="Email Address"
+              <TextInput
+                control={control}
+                name="email"
                 type="email"
+                label="Email Address"
                 placeholder="john@example.com"
-                error={errors.email?.message}
-                {...register('email')}
+                leftIcon={Mail}
+                autoComplete="email"
               />
-              <TextField
-                label="Password"
+              <TextInput
+                control={control}
+                name="password"
                 type="password"
+                label="Password"
                 placeholder="••••••••"
-                error={errors.password?.message}
-                {...register('password')}
+                leftIcon={Lock}
+                autoComplete="new-password"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
+              <DateInput
+                control={control}
+                name="dob"
+                variant="date"
                 label="Date of Birth"
-                type="date"
                 max={new Date().toISOString().split('T')[0]}
-                error={errors.dob?.message}
-                {...register('dob')}
               />
-              <TextField
-                label="Phone (Optional)"
+              <TextInput
+                control={control}
+                name="phone"
                 type="tel"
+                label="Phone (Optional)"
                 placeholder="(555) 123-4567"
-                {...register('phone')}
+                leftIcon={Phone}
+                autoComplete="tel"
               />
             </div>
 

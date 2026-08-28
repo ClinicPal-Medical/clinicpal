@@ -11,8 +11,8 @@ import {
   DocumentCard,
   DocumentDraftForm,
   DocumentPanel,
-  docInputStyle,
 } from '@/components/documents';
+import { TextInput, TextareaInput } from '@/components/form';
 import type { ReferralData } from '@/modules/encounters/types';
 
 type Urgency = 'ROUTINE' | 'URGENT' | 'EMERGENCY';
@@ -105,11 +105,11 @@ function AddReferralForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const {
-    register,
+    control,
     handleSubmit,
     watch,
     setValue,
-    formState: { isSubmitting, errors },
+    formState: { isSubmitting },
   } = useForm<ReferralFormValues>({
     resolver: zodResolver(referralSchema),
     defaultValues: { referredTo: '', reason: '', urgency: 'ROUTINE', notes: '' },
@@ -135,8 +135,6 @@ function AddReferralForm({
     }
   });
 
-  const input = docInputStyle('amber');
-
   return (
     <DocumentDraftForm
       tone="amber"
@@ -146,29 +144,24 @@ function AddReferralForm({
       error={error}
     >
       <div className="flex flex-col gap-3">
-        <div>
-          <label className="text-[10px] text-slate-500 block mb-1">Refer To *</label>
-          <input
-            {...register('referredTo')}
-            placeholder="e.g. ENT Specialist — City Hospital"
-            className={input}
-          />
-          {errors.referredTo && (
-            <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.referredTo.message}</p>
-          )}
-        </div>
-        <div>
-          <label className="text-[10px] text-slate-500 block mb-1">Reason *</label>
-          <textarea
-            {...register('reason')}
-            placeholder="Reason for referral…"
-            rows={2}
-            className={`${input} resize-y`}
-          />
-          {errors.reason && (
-            <p className="text-[11px] text-red-500 mt-1 font-medium">{errors.reason.message}</p>
-          )}
-        </div>
+        <TextInput
+          control={control}
+          name="referredTo"
+          label="Refer To *"
+          fieldSize="doc"
+          tone="amber"
+          placeholder="e.g. ENT Specialist — City Hospital"
+        />
+        <TextareaInput
+          control={control}
+          name="reason"
+          label="Reason *"
+          fieldSize="doc"
+          tone="amber"
+          rows={2}
+          placeholder="Reason for referral…"
+          className="resize-y"
+        />
         <div>
           <label className="text-[10px] text-slate-500 block mb-1.5">Urgency</label>
           <div className="flex gap-2">
@@ -188,15 +181,16 @@ function AddReferralForm({
             ))}
           </div>
         </div>
-        <div>
-          <label className="text-[10px] text-slate-500 block mb-1">Notes (optional)</label>
-          <textarea
-            {...register('notes')}
-            placeholder="Additional context…"
-            rows={2}
-            className={`${input} resize-y`}
-          />
-        </div>
+        <TextareaInput
+          control={control}
+          name="notes"
+          label="Notes (optional)"
+          fieldSize="doc"
+          tone="amber"
+          rows={2}
+          placeholder="Additional context…"
+          className="resize-y"
+        />
       </div>
     </DocumentDraftForm>
   );

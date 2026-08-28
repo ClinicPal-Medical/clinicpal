@@ -12,8 +12,8 @@ import {
   DocumentCard,
   DocumentDraftForm,
   DocumentPanel,
-  docInputStyle,
 } from '@/components/documents';
+import { TextInput, TextareaInput } from '@/components/form';
 import type { PrescriptionData, PrescriptionItemForm } from '@/modules/encounters/types';
 
 const prescriptionItemSchema = z.object({
@@ -169,12 +169,11 @@ function AddPrescriptionForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const {
-    register,
     handleSubmit,
     control,
     watch,
     setValue,
-    formState: { isSubmitting, errors },
+    formState: { isSubmitting },
   } = useForm<PrescriptionForm>({
     resolver: zodResolver(prescriptionSchema),
     defaultValues: { ...EMPTY_FORM },
@@ -202,8 +201,6 @@ function AddPrescriptionForm({
       setError('Network error. Please try again.');
     }
   });
-
-  const input = docInputStyle('blue');
 
   return (
     <DocumentDraftForm
@@ -254,64 +251,59 @@ function AddPrescriptionForm({
         {fields.map((field, i) => (
           <div key={field.id} className="mb-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
             <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 mb-2">
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">Medication Name</label>
-                <input
-                  list={type === 'INTERNAL' ? 'stock-items-list' : undefined}
-                  {...register(`items.${i}.medicationName` as const)}
-                  placeholder={type === 'INTERNAL' ? 'Search stock items…' : 'Medication name…'}
-                  className={input}
-                />
-                {errors.items?.[i]?.medicationName && (
-                  <p className="text-[11px] text-red-500 mt-1 font-medium">
-                    {errors.items[i]?.medicationName?.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">Dosage</label>
-                <input
-                  {...register(`items.${i}.dosage` as const)}
-                  placeholder="e.g. 500mg"
-                  className={input}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">Frequency</label>
-                <input
-                  {...register(`items.${i}.frequency` as const)}
-                  placeholder="e.g. Twice daily"
-                  className={input}
-                />
-              </div>
+              <TextInput
+                control={control}
+                name={`items.${i}.medicationName` as const}
+                label="Medication Name"
+                fieldSize="doc"
+                tone="blue"
+                placeholder={type === 'INTERNAL' ? 'Search stock items…' : 'Medication name…'}
+                list={type === 'INTERNAL' ? 'stock-items-list' : undefined}
+              />
+              <TextInput
+                control={control}
+                name={`items.${i}.dosage` as const}
+                label="Dosage"
+                fieldSize="doc"
+                tone="blue"
+                placeholder="e.g. 500mg"
+              />
+              <TextInput
+                control={control}
+                name={`items.${i}.frequency` as const}
+                label="Frequency"
+                fieldSize="doc"
+                tone="blue"
+                placeholder="e.g. Twice daily"
+              />
             </div>
             <div className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">Duration (days)</label>
-                <input
-                  type="number"
-                  min={1}
-                  {...register(`items.${i}.durationDays` as const, { valueAsNumber: true })}
-                  className={input}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">Qty</label>
-                <input
-                  type="number"
-                  min={1}
-                  {...register(`items.${i}.quantity` as const, { valueAsNumber: true })}
-                  className={input}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">Instructions</label>
-                <input
-                  {...register(`items.${i}.instructions` as const)}
-                  placeholder="Take with food…"
-                  className={input}
-                />
-              </div>
+              <TextInput
+                control={control}
+                name={`items.${i}.durationDays` as const}
+                label="Duration (days)"
+                type="float"
+                decimals={0}
+                fieldSize="doc"
+                tone="blue"
+              />
+              <TextInput
+                control={control}
+                name={`items.${i}.quantity` as const}
+                label="Qty"
+                type="float"
+                decimals={0}
+                fieldSize="doc"
+                tone="blue"
+              />
+              <TextInput
+                control={control}
+                name={`items.${i}.instructions` as const}
+                label="Instructions"
+                fieldSize="doc"
+                tone="blue"
+                placeholder="Take with food…"
+              />
               <button
                 type="button"
                 onClick={() => remove(i)}
@@ -338,12 +330,15 @@ function AddPrescriptionForm({
 
       {/* Notes */}
       <div className="mb-3.5">
-        <label className="text-[10px] text-slate-500 block mb-1">Notes (optional)</label>
-        <textarea
-          {...register('notes')}
-          placeholder="Dispensing or patient instructions…"
-          className={`${input} min-h-[56px] resize-y`}
+        <TextareaInput
+          control={control}
+          name="notes"
+          label="Notes (optional)"
+          fieldSize="doc"
+          tone="blue"
           rows={2}
+          placeholder="Dispensing or patient instructions…"
+          className="min-h-[56px] resize-y"
         />
       </div>
     </DocumentDraftForm>

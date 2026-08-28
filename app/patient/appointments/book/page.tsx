@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { User, Calendar, Clock, CheckCircle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Button from '@/components/Button';
-import TextField from '@/components/TextField';
-import TextareaField from '@/components/TextareaField';
+import { DateInput, TextareaInput } from '@/components/form';
+
+type BookingForm = { date: string; reason: string };
 
 type Staff = { id: string; name: string; specialisation: string };
 
@@ -18,11 +20,14 @@ function BookAppointmentContent() {
   const [step, setStep] = useState(1);
   const [doctorsList, setDoctorsList] = useState<Staff[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<Staff | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string>('');
-  const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const { control, watch, getValues } = useForm<BookingForm>({
+    defaultValues: { date: '', reason: '' },
+  });
+  const selectedDate = watch('date');
 
   useEffect(() => {
     fetch('/api/doctors').then(r => r.json()).then((list: Staff[]) => {
@@ -34,18 +39,18 @@ function BookAppointmentContent() {
     });
   }, [preselectedStaffId]);
 
-  const fetchSlots = async (staffId: string, date: string) => {
-    const res = await fetch(`/api/appointments/slots?staffId=${staffId}&date=${date}`);
-    const data = await res.json();
-    setAvailableSlots(data);
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const date = e.target.value;
-    setSelectedDate(date);
+  useEffect(() => {
     setSelectedSlot('');
-    if (selectedDoctor) fetchSlots(selectedDoctor.id, date);
-  };
+    if (selectedDoctor && selectedDate) {
+      fetch(
+        `/api/appointments/slots?staffId=${selectedDoctor.id}&date=${selectedDate}`,
+      )
+        .then((r) => r.json())
+        .then(setAvailableSlots);
+    } else {
+      setAvailableSlots([]);
+    }
+  }, [selectedDoctor, selectedDate]);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -56,12 +61,12 @@ function BookAppointmentContent() {
         body: JSON.stringify({
           staffId: selectedDoctor?.id,
           scheduledAt: selectedSlot,
-          reason
-        })
+          reason: getValues('reason'),
+        }),
       });
       if (!res.ok) throw new Error('Failed to book');
       router.push('/patient/appointments');
-    } catch (err) {
+    } catch {
       alert('Error booking appointment.');
       setLoading(false);
     }
@@ -120,12 +125,12 @@ function BookAppointmentContent() {
           <div className="space-y-6 animate-in slide-in-from-right-4 fade-in flex-1 flex flex-col">
             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><Calendar className="mr-2 text-blue-600" /> Select Date & Time</h2>
             <div className="flex-1">
-              <TextField
+              <DateInput
+                control={control}
+                name="date"
+                variant="date"
                 label="Date"
-                type="date"
                 min={new Date().toISOString().split('T')[0]}
-                value={selectedDate}
-                onChange={handleDateChange}
               />
 
               {selectedDate && (
@@ -194,10 +199,10 @@ function BookAppointmentContent() {
               </div>
 
               <div className="mt-8">
-                <TextareaField
+                <TextareaInput
+                  control={control}
+                  name="reason"
                   label="Reason for Visit (Optional)"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
                   rows={3}
                   placeholder="Briefly describe your symptoms or reason for the appointment..."
                   className="resize-none"

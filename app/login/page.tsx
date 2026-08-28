@@ -7,8 +7,9 @@ import { z } from "zod";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Mail, Lock } from "lucide-react";
 import Button from "@/components/Button";
-import TextField from "@/components/TextField";
+import { TextInput } from "@/components/form";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email address"),
@@ -21,10 +22,13 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const {
-    register,
+    control,
     handleSubmit,
-    formState: { isSubmitting, errors },
-  } = useForm<FormValues>({ resolver: zodResolver(loginSchema) });
+    formState: { isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setError("");
@@ -65,20 +69,24 @@ export default function LoginPage() {
               </div>
             )}
 
-            <TextField
-              label="Email Address"
+            <TextInput
+              control={control}
+              name="email"
               type="email"
+              label="Email Address"
               placeholder="john.doe@example.com"
-              error={errors.email?.message}
-              {...register("email")}
+              leftIcon={Mail}
+              autoComplete="email"
             />
 
-            <TextField
-              label="Password"
+            <TextInput
+              control={control}
+              name="password"
               type="password"
+              label="Password"
               placeholder="••••••••"
-              error={errors.password?.message}
-              {...register("password")}
+              leftIcon={Lock}
+              autoComplete="current-password"
             />
 
             <Button

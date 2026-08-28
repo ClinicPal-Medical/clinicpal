@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { User, Phone, Mail, Save, AlertCircle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Button from '@/components/Button';
-import TextField from '@/components/TextField';
+import { TextInput } from '@/components/form';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -22,10 +22,10 @@ export default function PatientProfilePage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ text: '', type: '' });
   const {
-    register,
+    control,
     handleSubmit,
     reset,
-    formState: { isSubmitting, errors },
+    formState: { isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: { firstName: '', lastName: '', email: '', phone: '' },
@@ -78,36 +78,40 @@ export default function PatientProfilePage() {
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <TextField
+            <TextInput
+              control={control}
+              name="firstName"
               label="First Name"
-              type="text"
-              icon={User}
-              error={errors.firstName?.message}
-              {...register('firstName')}
+              leftIcon={User}
+              autoComplete="given-name"
             />
-            <TextField
+            <TextInput
+              control={control}
+              name="lastName"
               label="Last Name"
-              type="text"
-              icon={User}
-              error={errors.lastName?.message}
-              {...register('lastName')}
+              leftIcon={User}
+              autoComplete="family-name"
             />
           </div>
 
-          <TextField
-            label="Email Address"
+          <TextInput
+            control={control}
+            name="email"
             type="email"
-            icon={Mail}
+            label="Email Address"
+            leftIcon={Mail}
             disabled
             hint="Email address cannot be changed. Contact support if needed."
-            {...register('email')}
+            autoComplete="email"
           />
 
-          <TextField
-            label="Phone Number"
+          <TextInput
+            control={control}
+            name="phone"
             type="tel"
-            icon={Phone}
-            {...register('phone')}
+            label="Phone Number"
+            leftIcon={Phone}
+            autoComplete="tel"
           />
 
           <div className="pt-6 border-t border-slate-100 mt-2">
