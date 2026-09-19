@@ -32,7 +32,11 @@ export default function LoginPage() {
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setError("");
-    const res = await signIn("credentials", { redirect: false, email, password });
+    const res = await signIn("credentials", {
+      redirect: false,
+      email,
+      password,
+    });
 
     if (res?.error) {
       setError(res.error);
@@ -105,10 +109,7 @@ export default function LoginPage() {
               Demo Credentials
             </p>
             <p className="text-sm font-semibold text-slate-700">
-              john.doe@example.com <br /> jane.smith@example.com
-            </p>
-            <p className="text-sm font-semibold text-slate-700">
-              nurse@clinicpal.com <br /> doctor@clinicpal.com
+              admin@clinicpal.com
             </p>
             <p className="text-sm text-slate-500 mt-1">
               <span className="font-mono bg-slate-200 px-1 py-0.5 rounded text-slate-700">

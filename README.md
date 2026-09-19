@@ -25,10 +25,10 @@ NEXTAUTH_SECRET="<random-string>"
 NEXTAUTH_URL="http://localhost:3000"
 ```
 
-Apply migrations and seed demo data:
+Create the database tables and seed demo data:
 
 ```bash
-npx prisma migrate deploy
+npx prisma db push
 npx prisma db seed
 ```
 
@@ -40,7 +40,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The seed creates two patient logins (`john.doe@example.com`, `jane.smith@example.com`) and a staff set (`nurse@clinicpal.com`, `doctor@clinicpal.com`). Password for all demo accounts: `password123`.
+The seed creates a single built-in admin account: `admin@clinicpal.com` / `password123`. Everything else — staff, patients, appointments, stock — is created through the app. Override the defaults with `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` and `SEED_ADMIN_NAME`. Re-running the seed is safe: if the account already exists it is left alone (password included) and only re-activated as `ADMIN`.
 
 ## Scripts
 
@@ -68,7 +68,7 @@ modules/              Domain services (appointments, billing, encounters,
                       patients, stock) — pure logic, called by /api handlers
 lib/                  Cross-cutting helpers (auth, db, rbac, notifications,
                       PDF templates)
-prisma/               Prisma schema, migrations, seed
+prisma/               Prisma schema and seed
 tests/                Shared test helpers
 ```
 
@@ -103,6 +103,7 @@ npm run test:watch # watch mode
 
 ```bash
 npx prisma studio          # open the GUI
-npx prisma migrate dev     # create + apply a new migration in dev
+npx prisma db push         # apply schema.prisma to the database
+npx prisma db push --force-reset  # drop everything and recreate from schema
 npx prisma generate        # regenerate the client after schema changes
 ```
